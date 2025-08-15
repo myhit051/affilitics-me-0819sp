@@ -14,6 +14,21 @@ interface UpdateItem {
 
 const updates: UpdateItem[] = [
   {
+    date: "2025-08-15",
+    time: "09:30",
+    version: "v2.5.195",
+    type: "improvement",
+    title: "🔧 Enhanced Router Configuration with Base URL Support",
+    description: "Updated the React Router configuration in App.tsx to support dynamic base URL from environment variables, improving deployment flexibility for different hosting environments and subdirectory deployments",
+    details: [
+      "🔧 Added basename={import.meta.env.BASE_URL} to BrowserRouter configuration",
+      "🌐 Enhanced support for subdirectory deployments and custom base paths",
+      "⚡ Improved deployment flexibility across different hosting environments",
+      "🎯 Better compatibility with various deployment scenarios (GitHub Pages, subdirectories, etc.)",
+      "✨ Maintains existing routing functionality while adding environment-based configuration"
+    ]
+  },
+  {
     date: "2025-08-10",
     time: "14:40",
     version: "v2.5.194",

@@ -166,21 +166,29 @@ src/
 
 ## 🌐 Deployment
 
+### GitHub Pages (Live Demo)
+The application is automatically deployed to GitHub Pages:
+- **Live URL**: https://myhit051.github.io/affilitics-me-2.5.57/
+- **Auto-deployment**: Triggered on every push to `main` branch
+- **Build process**: GitHub Actions workflow handles build and deployment
+
 ### Production Build
 ```bash
-npm run build
+npm run build:pages    # Build for GitHub Pages
+npm run build          # Standard build
 ```
 
 ### Environment Variables (Production)
 ```env
 VITE_FACEBOOK_APP_ID=your_production_app_id
-VITE_FACEBOOK_REDIRECT_URI=https://yourdomain.com/auth/facebook/callback
+VITE_FACEBOOK_REDIRECT_URI=https://myhit051.github.io/affilitics-me-2.5.57/auth/facebook/callback
 VITE_DEBUG_FACEBOOK=false
 ```
 
 ### Facebook App (Production)
 - Switch app to Live mode
-- Update redirect URIs to production URLs
+- Update redirect URIs to production URLs:
+  - `https://myhit051.github.io/affilitics-me-2.5.57/auth/facebook/callback`
 - Submit for App Review if needed
 
 ## 🤝 Contributing

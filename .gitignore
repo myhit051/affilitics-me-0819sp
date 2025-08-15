@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SSH keys and agent files
+*.pub
+ssh-*
+eval*
