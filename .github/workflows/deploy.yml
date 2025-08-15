@@ -36,6 +36,12 @@ jobs:
       run: npm run build
       env:
         NODE_ENV: production
+        VITE_FACEBOOK_APP_ID: ${{ secrets.VITE_FACEBOOK_APP_ID }}
+        VITE_FACEBOOK_API_VERSION: ${{ secrets.VITE_FACEBOOK_API_VERSION }}
+        VITE_FACEBOOK_REDIRECT_URI: ${{ secrets.VITE_FACEBOOK_REDIRECT_URI }}
+        VITE_FACEBOOK_SCOPES: ${{ secrets.VITE_FACEBOOK_SCOPES }}
+        VITE_ENABLE_ANALYTICS: ${{ secrets.VITE_ENABLE_ANALYTICS }}
+        VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         
     - name: Setup Pages
       uses: actions/configure-pages@v4

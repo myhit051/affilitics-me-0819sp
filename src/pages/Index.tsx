@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -35,8 +37,11 @@ import PlatformFilter from "@/components/PlatformFilter";
 import ChannelFilter from "@/components/ChannelFilter";
 import { useImportedData } from "@/hooks/useImportedData";
 import { generateTraditionalCampaigns } from "@/utils/affiliateCalculations";
-import { DollarSign, TrendingUp, Target, ShoppingCart, Upload, RotateCcw } from "lucide-react";
+import { DollarSign, TrendingUp, Target, ShoppingCart, Upload, RotateCcw, AlertTriangle, CheckCircle } from "lucide-react";
 import AffiliatePerformanceChart from "@/components/AffiliatePerformanceChart";
+import { getProductionConfig } from "@/config/production";
+import { performanceMonitor } from "@/lib/performance-monitor";
+import { analytics } from "@/lib/analytics";
 
 const Index = () => {
   const [activeView, setActiveView] = useState("dashboard");
@@ -46,6 +51,10 @@ const Index = () => {
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [originalData, setOriginalData] = useState<any>(null);
+  const [systemStatus, setSystemStatus] = useState<'healthy' | 'warning' | 'error'>('healthy');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  
+  const config = getProductionConfig();
   
   // Persistent data storage for each platform
   const [storedData, setStoredData] = useState<{

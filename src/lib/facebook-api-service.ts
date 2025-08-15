@@ -72,6 +72,12 @@ export class FacebookAPIService {
   private client: FacebookAPIClient;
   private config: FacebookAPIServiceConfig;
   private cache = getFacebookDataCache();
+  private healthCheckInterval?: NodeJS.Timeout;
+  private lastHealthCheck?: Date;
+  private serviceStatus: 'healthy' | 'degraded' | 'down' = 'healthy';
+  private requestCount = 0;
+  private errorCount = 0;
+  private lastResetTime = Date.now();
 
   constructor(client?: FacebookAPIClient, config: FacebookAPIServiceConfig = {}) {
     this.client = client || getFacebookAPIClient();
@@ -82,6 +88,75 @@ export class FacebookAPIService {
       syncTimeout: 300000, // 5 minutes
       ...config,
     };
+    
+    // Start health monitoring in production
+    if (!import.meta.env.DEV) {
+      this.startHealthMonitoring();
+    }
+  }
+
+  // Health monitoring methods
+  private startHealthMonitoring(): void {
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, 60000); // Check every minute
+  }
+
+  private async performHealthCheck(): Promise<void> {
+    try {
+      if (!this.isAuthenticated()) {
+        this.serviceStatus = 'down';
+        return;
+      }
+
+      // Simple health check - get user info
+      await this.client.get('/me', { fields: 'id' });
+      
+      // Check error rate
+      const errorRate = this.errorCount / Math.max(this.requestCount, 1);
+      if (errorRate > 0.1) { // More than 10% error rate
+        this.serviceStatus = 'degraded';
+      } else {
+        this.serviceStatus = 'healthy';
+      }
+
+      this.lastHealthCheck = new Date();
+      
+      // Reset counters every hour
+      if (Date.now() - this.lastResetTime > 3600000) {
+        this.requestCount = 0;
+        this.errorCount = 0;
+        this.lastResetTime = Date.now();
+      }
+
+    } catch (error) {
+      this.serviceStatus = 'down';
+      console.error('Health check failed:', error);
+    }
+  }
+
+  // Get service health status
+  getHealthStatus(): {
+    status: 'healthy' | 'degraded' | 'down';
+    lastCheck?: Date;
+    requestCount: number;
+    errorCount: number;
+    errorRate: number;
+  } {
+    return {
+      status: this.serviceStatus,
+      lastCheck: this.lastHealthCheck,
+      requestCount: this.requestCount,
+      errorCount: this.errorCount,
+      errorRate: this.errorCount / Math.max(this.requestCount, 1),
+    };
+  }
+
+  // Cleanup method
+  destroy(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
   }
 
   // Set access token for the underlying client

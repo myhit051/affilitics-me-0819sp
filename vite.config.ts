@@ -11,8 +11,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
@@ -20,4 +19,47 @@ export default defineConfig(({ mode }) => ({
     },
   },
   base: process.env.NODE_ENV === 'production' ? '/affilitics-me-2.5.57/' : '/',
+  
+  // Production optimizations
+  build: {
+    target: 'es2015',
+    minify: 'terser',
+    sourcemap: mode === 'development',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'chart-vendor': ['recharts', 'chart.js', 'react-chartjs-2'],
+          'utils-vendor': ['date-fns', 'clsx', 'class-variance-authority'],
+        },
+      },
+    },
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
+  
+  // Performance optimizations
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'recharts',
+      'date-fns',
+    ],
+  },
+  
+  // Environment variables
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
+  },
 }));
