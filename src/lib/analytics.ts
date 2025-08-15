@@ -16,8 +16,8 @@ class Analytics {
     if (!this.isEnabled) return;
 
     // Google Analytics 4
-    if (typeof gtag !== 'undefined') {
-      gtag('event', event.name, event.properties);
+    if (typeof window !== 'undefined' && 'gtag' in window) {
+      (window as any).gtag('event', event.name, event.properties);
     }
 
     // Console log for development
@@ -30,8 +30,8 @@ class Analytics {
   pageView(path: string) {
     if (!this.isEnabled) return;
 
-    if (typeof gtag !== 'undefined') {
-      gtag('config', 'GA_MEASUREMENT_ID', {
+    if (typeof window !== 'undefined' && 'gtag' in window) {
+      (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
         page_path: path,
       });
     }

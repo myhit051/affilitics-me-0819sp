@@ -15,6 +15,23 @@ interface UpdateItem {
 const updates: UpdateItem[] = [
   {
     date: "2025-08-15",
+    time: "20:15",
+    version: "v2.5.204",
+    type: "improvement",
+    title: "📦 Added Terser for Production Build Optimization",
+    description: "Added Terser as a development dependency to enable advanced JavaScript minification and optimization for production builds, improving bundle size and performance",
+    details: [
+      "📦 Added terser@5.36.0 as development dependency for production build optimization",
+      "🗜️ Enhanced JavaScript minification capabilities with advanced compression algorithms",
+      "⚡ Improved production bundle size through dead code elimination and tree shaking",
+      "🔧 Better integration with Vite build system for optimized production outputs",
+      "📈 Enhanced performance through more aggressive code optimization in production builds",
+      "✨ Maintains source map support for debugging while optimizing production code",
+      "🎯 Supports modern JavaScript features while ensuring compatibility with target browsers"
+    ]
+  },
+  {
+    date: "2025-08-15",
     time: "19:45",
     version: "v2.5.203",
     type: "feature",

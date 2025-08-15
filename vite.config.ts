@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   // Production optimizations
   build: {
     target: 'es2015',
-    minify: 'terser',
+    minify: mode === 'production' ? 'esbuild' : false,
     sourcemap: mode === 'development',
     rollupOptions: {
       output: {
@@ -36,12 +36,9 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: mode === 'production',
-      },
-    },
+    esbuild: mode === 'production' ? {
+      drop: ['console', 'debugger'],
+    } : undefined,
     chunkSizeWarningLimit: 1000,
   },
   
