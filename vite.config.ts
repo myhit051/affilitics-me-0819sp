@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: process.env.NODE_ENV === 'production' ? '/affilitics-me-2.5.57/' : '/',
+  base: process.env.GITHUB_PAGES === 'true' ? '/affilitics-me-2.5.57/' : '/',
   
   // Production optimizations
   build: {
