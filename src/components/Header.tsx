@@ -1,55 +1,117 @@
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "next-themes";
+import { 
+  Home, 
+  Sun, 
+  Moon, 
+  Settings
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import { useState } from "react";
-import { Search, Bell, RefreshCw } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-interface HeaderProps {
-  onRefresh: () => void;
-  isLoading?: boolean;
-}
-
-export default function Header({ onRefresh, isLoading = false }: HeaderProps) {
-  const [searchValue, setSearchValue] = useState("");
-  const isMobile = useIsMobile();
+export default function Header() {
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   return (
-    <header className="bg-background py-3 px-4 md:px-8 border-b border-border flex items-center justify-between animate-fade-in">
-      <div className="flex-1">
-        <h1 className="text-xl font-medium">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Your crypto insights for {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onRefresh}
-          className={cn(
-            "h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors bg-secondary hover:bg-secondary/80",
-            isLoading && "animate-pulse"
-          )}
-          disabled={isLoading}
-        >
-          <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
-        </button>
-        
-        <button className="h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors bg-secondary hover:bg-secondary/80 relative">
-          <Bell size={16} />
-          <span className="absolute top-1 right-2 h-2 w-2 rounded-full bg-primary"></span>
-        </button>
-
-        <div className="h-9 relative hidden sm:block">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search size={16} className="text-muted-foreground" />
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <div className="flex h-full items-center justify-between px-6">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-sm">A</span>
           </div>
-          <input
-            type="text"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Search projects..."
-            className="pl-10 pr-4 py-2 h-full rounded-full text-sm bg-secondary border border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors w-[220px] md:w-[280px]"
-          />
+          <h1 className="font-semibold text-xl">
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Affilitics
+            </span>
+            <span className="text-muted-foreground">.me</span>
+          </h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center gap-6">
+          {/* Home */}
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate("/home")}
+            className="flex items-center gap-2"
+          >
+            <Home className="h-4 w-4" />
+            Home
+          </Button>
+
+          {/* Dashboard */}
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2"
+          >
+            📊 Dashboard
+          </Button>
+
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex items-center gap-2"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+
+          {/* Settings */}
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate("/settings")}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </nav>
+
+        {/* Mobile Menu */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate("/home")}>
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/")}>
+                📊 Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4 mr-2" />
+                ) : (
+                  <Moon className="h-4 w-4 mr-2" />
+                )}
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

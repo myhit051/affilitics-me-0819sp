@@ -760,7 +760,8 @@ export default function AdPlanning({ shopeeOrders, lazadaOrders, facebookAds, da
                   // Calculate Total Com from Shopee and Lazada (unique orders only)
                   const uniqueShopeeOrders = new Map();
                   shopeeOrders.forEach(order => {
-                    const orderId = order['เลขที่คำสั่งซื้อ'];
+                    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+                    const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
                     if (!uniqueShopeeOrders.has(orderId)) {
                       uniqueShopeeOrders.set(orderId, order);
                     }

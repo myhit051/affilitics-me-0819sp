@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { calculateMetrics, analyzeSubIdPerformance, analyzePlatformPerformance, analyzeDailyPerformance, CalculatedMetrics, DailyMetrics, sumShopeeCommissionRaw } from '@/utils/affiliateCalculations';
 import { dataMerger, DataSource } from '@/lib/data-merger';
 import { parse, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
@@ -69,8 +69,13 @@ export function useImportedData() {
   const [calculatedMetrics, setCalculatedMetrics] = useState<CalculatedMetrics | null>(() => {
     try {
       const stored = localStorage.getItem('affiliateMetrics');
+      console.log('🔍 Loading calculatedMetrics from localStorage:', {
+        stored: stored,
+        parsed: stored ? JSON.parse(stored) : null
+      });
       return stored ? JSON.parse(stored) : null;
-    } catch {
+    } catch (error) {
+      console.error('❌ Error loading calculatedMetrics from localStorage:', error);
       return null;
     }
   });
@@ -103,6 +108,38 @@ export function useImportedData() {
   });
   
   const [loading, setLoading] = useState(false);
+
+  // Auto-process data when importedData is loaded from localStorage
+  useEffect(() => {
+    console.log('🔄 useEffect triggered:', {
+      hasImportedData: !!importedData,
+      hasCalculatedMetrics: !!calculatedMetrics,
+      importedDataLength: importedData?.shopeeOrders?.length || 0
+    });
+    
+    // Check if calculatedMetrics has the expected structure
+    const hasValidCalculatedMetrics = calculatedMetrics && 
+      typeof calculatedMetrics.totalComSP === 'number' &&
+      typeof calculatedMetrics.totalOrdersSP === 'number' &&
+      typeof calculatedMetrics.totalAmountSP === 'number';
+    
+    console.log('🔍 calculatedMetrics validation:', {
+      hasCalculatedMetrics: !!calculatedMetrics,
+      hasValidStructure: hasValidCalculatedMetrics,
+      totalComSP: calculatedMetrics?.totalComSP,
+      totalOrdersSP: calculatedMetrics?.totalOrdersSP,
+      totalAmountSP: calculatedMetrics?.totalAmountSP
+    });
+    
+    if (importedData && (!calculatedMetrics || !hasValidCalculatedMetrics)) {
+      console.log('🔄 Auto-processing imported data from localStorage...');
+      processImportedData(importedData);
+    } else if (importedData && calculatedMetrics && hasValidCalculatedMetrics) {
+      console.log('🔄 Data already processed, calculatedMetrics exists and is valid');
+    } else if (!importedData) {
+      console.log('🔄 No importedData available');
+    }
+  }, [importedData, calculatedMetrics]);
 
   const parseDate = (dateStr: string, timeStr?: string): Date | null => {
     if (!dateStr) return null;
@@ -486,6 +523,31 @@ export function useImportedData() {
     setPlatformAnalysis(platforms);
   };
 
+  const clearAllData = () => {
+    // Clear all state
+    setImportedData(null);
+    setRawData(null);
+    setCalculatedMetrics(null);
+    setSubIdAnalysis([]);
+    setPlatformAnalysis([]);
+    setDailyMetrics([]);
+    
+    // Clear all localStorage data
+    try {
+      localStorage.removeItem('affiliateData');
+      localStorage.removeItem('affiliateRawData');
+      localStorage.removeItem('affiliateMetrics');
+      localStorage.removeItem('affiliateSubIdAnalysis');
+      localStorage.removeItem('affiliatePlatformAnalysis');
+      localStorage.removeItem('affiliateDailyMetrics');
+      localStorage.removeItem('affilitics-stored-metadata');
+      
+      console.log('✅ All data cleared from localStorage and state');
+    } catch (error) {
+      console.error('Error clearing data:', error);
+    }
+  };
+
   const hasData = importedData !== null && (
     (importedData.shopeeOrders && importedData.shopeeOrders.length > 0) ||
     (importedData.lazadaOrders && importedData.lazadaOrders.length > 0) ||
@@ -502,7 +564,8 @@ export function useImportedData() {
 
   const uniqueShopeeOrderCount = useMemo(() => {
     if (!importedData || !importedData.shopeeOrders) return 0;
-    const unique = new Set(importedData.shopeeOrders.map(order => order['เลขที่คำสั่งซื้อ']));
+    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+    const unique = new Set(importedData.shopeeOrders.map(order => order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ']));
     return unique.size;
   }, [importedData]);
 
@@ -525,6 +588,7 @@ export function useImportedData() {
     loading,
     processImportedData,
     resetToOriginalData,
+    clearAllData,
     hasData,
     rawShopeeCommission,
     rawShopeeOrderCount,

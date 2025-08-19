@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { cryptoCategories } from "@/lib/mockData";
 
 interface TrendingToken {
   id: number;
@@ -16,6 +15,14 @@ interface TrendingSectionProps {
   tokens: TrendingToken[];
 }
 
+// Default categories if no data is provided
+const defaultCategories = [
+  { id: "all", name: "All" },
+  { id: "defi", name: "DeFi" },
+  { id: "gaming", name: "Gaming" },
+  { id: "meme", name: "Meme" }
+];
+
 export default function TrendingSection({ tokens }: TrendingSectionProps) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   
@@ -24,6 +31,25 @@ export default function TrendingSection({ tokens }: TrendingSectionProps) {
     : tokens.filter(token => 
         token.category.toLowerCase() === selectedCategory.toLowerCase()
       );
+  
+  // If no tokens provided, show empty state
+  if (!tokens || tokens.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-5 gradient-border animate-scale-in" style={{ animationDelay: "200ms" }}>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={16} className="text-primary" />
+            <h3 className="font-medium">Trending</h3>
+          </div>
+        </div>
+        
+        <div className="text-center py-8 text-muted-foreground">
+          <p>No trending data available</p>
+          <p className="text-sm">Import data to see trending analytics</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="rounded-lg border border-border bg-card p-5 gradient-border animate-scale-in" style={{ animationDelay: "200ms" }}>
@@ -34,7 +60,7 @@ export default function TrendingSection({ tokens }: TrendingSectionProps) {
         </div>
         
         <div className="flex gap-2">
-          {cryptoCategories.map(category => (
+          {defaultCategories.map(category => (
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}

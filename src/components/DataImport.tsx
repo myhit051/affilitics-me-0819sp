@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -384,6 +383,19 @@ export default function DataImport({
     setErrors([]);
     setSuccess(false);
 
+    // Clear localStorage when starting new import
+    try {
+      localStorage.removeItem('affiliateData');
+      localStorage.removeItem('affiliateRawData');
+      localStorage.removeItem('affiliateMetrics');
+      localStorage.removeItem('affiliateSubIdAnalysis');
+      localStorage.removeItem('affiliatePlatformAnalysis');
+      localStorage.removeItem('affiliateDailyMetrics');
+      console.log('✅ Cleared localStorage for new import');
+    } catch (error) {
+      console.warn('Failed to clear localStorage:', error);
+    }
+
     try {
       // Start with existing data from stored data
       let shopeeOrders: any[] = storedData.shopee?.data || [];
@@ -550,6 +562,22 @@ export default function DataImport({
       
       onDataImported(importedData);
       setSuccess(true);
+      
+      // Reset files after successful import
+      setFiles({
+        shopee: null,
+        lazada: null,
+        facebook: null
+      });
+      
+      // Reset progress
+      setProgress(0);
+      setCurrentProcessing('');
+      
+      // ไม่ reset success state เพราะจะ redirect ไปหน้า Dashboard แล้ว
+      // setTimeout(() => {
+      //   setSuccess(false);
+      // }, 3000);
 
     } catch (error: any) {
       console.error('Import error:', error);
@@ -1541,26 +1569,23 @@ export default function DataImport({
             </Alert>
           )}
 
-          {/* Success Message */}
-          {success && (
-            <Alert className="border-green-500/50 bg-green-500/10">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <div className="flex items-center justify-between w-full">
-                <AlertDescription className="text-green-400">
-                  ✅ นำเข้าข้อมูลสำเร็จแล้ว!
-                </AlertDescription>
-                {onNavigateToDashboard && (
-                  <Button
-                    onClick={onNavigateToDashboard}
-                    className="ml-4 bg-green-600 hover:bg-green-700 text-white"
-                    size="sm"
-                  >
-                    ไปที่ Dashboard
-                  </Button>
-                )}
-              </div>
-            </Alert>
-          )}
+                     {/* Success Message */}
+           {success && (
+             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+               <div className="bg-white rounded-xl p-8 max-w-md mx-4 text-center shadow-2xl">
+                 <div className="text-6xl mb-4">🎉</div>
+                 <h3 className="text-2xl font-bold text-green-600 mb-2">
+                   นำเข้าข้อมูลสำเร็จ!
+                 </h3>
+                 <p className="text-gray-600 mb-6">
+                   ข้อมูลถูกนำเข้าสู่ระบบเรียบร้อยแล้ว กำลังไปที่ Dashboard...
+                 </p>
+                 <div className="flex justify-center">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                 </div>
+               </div>
+             </div>
+           )}
 
           {/* Import Button */}
           <div className="flex justify-center gap-4 pt-4">
@@ -1580,12 +1605,12 @@ export default function DataImport({
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
                   กำลังประมวลผล...
                 </>
-              ) : success ? (
-                <>
-                  <CheckCircle className="mr-3 h-5 w-5 text-green-200" />
-                  ✅ นำเข้าข้อมูลสำเร็จ
-                </>
-              ) : (
+                             ) : success ? (
+                 <>
+                   <CheckCircle className="mr-3 h-5 w-5 text-green-200" />
+                   ✅ นำเข้าข้อมูลสำเร็จ - กำลังไปที่ Dashboard...
+                 </>
+               ) : (
                 <>
                   <Sparkles className="mr-3 h-5 w-5 group-hover:animate-pulse" />
                   {(files.shopee || files.lazada || files.facebook) ? 'อัปเดตข้อมูล' : 'เริ่มวิเคราะห์ข้อมูล'}
@@ -1614,9 +1639,9 @@ export default function DataImport({
                       facebook: currentData.facebookAds.length,
                       total: currentData.totalRows
                     });
-                    onDataImported(currentData);
-                    setSuccess(true);
-                    setTimeout(() => setSuccess(false), 3000);
+                                         onDataImported(currentData);
+                     setSuccess(true);
+                     // ไม่ต้อง reset success state เพราะจะ redirect ไปหน้า Dashboard แล้ว
                   }}
                   size="lg"
                   variant="outline"
@@ -1656,7 +1681,7 @@ export default function DataImport({
                       
                       // Reset states
                       setSuccess(false);
-                      setError(null);
+                      setErrors([]);
                       setProgress(0);
                       
                       console.log('✅ All data cleared');

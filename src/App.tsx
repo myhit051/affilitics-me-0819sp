@@ -5,10 +5,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
-import Index from "./pages/Index";
+import Layout from "./components/Layout";
+import * as HomeModule from "./pages/Home";
+const Home = HomeModule.default;
+import Dashboard from "./pages/Dashboard";
+import ShopeeAffiliate from "./pages/ShopeeAffiliate";
+import LazadaAffiliate from "./pages/LazadaAffiliate";
+import FacebookAdsFile from "./pages/FacebookAdsFile";
+import AdPlanningPage from "./pages/AdPlanning";
+import Workspace from "./pages/Workspace";
+import DataImportPage from "./pages/DataImport";
+import ConnectAPIs from "./pages/ConnectAPIs";
+import Update from "./pages/Update";
 import NotFound from "./pages/NotFound";
 import FacebookCallback from "./pages/FacebookCallback";
+import CloudSync from "./pages/CloudSync";
 import FacebookAdsAPI from "./pages/FacebookAdsAPI";
+import FacebookTest from "./pages/FacebookTest";
 import { getProductionConfig } from "./config/production";
 import { analytics } from "./lib/analytics";
 
@@ -102,9 +115,28 @@ const App = () => {
             <Sonner />
             <BrowserRouter basename={import.meta.env.BASE_URL}>
               <Routes>
-                <Route path="/" element={<Index />} />
+                {/* Main App Routes with Layout */}
+                <Route path="/home" element={<Layout><Home /></Layout>} />
+                <Route path="/" element={<Layout><Dashboard /></Layout>} />
+                <Route path="/shopee" element={<Layout><ShopeeAffiliate /></Layout>} />
+                <Route path="/lazada" element={<Layout><LazadaAffiliate /></Layout>} />
+                <Route path="/facebook-file" element={<Layout><FacebookAdsFile /></Layout>} />
+                <Route path="/facebook-live" element={<Layout><FacebookAdsAPI /></Layout>} />
+                <Route path="/planning" element={<Layout><AdPlanningPage /></Layout>} />
+                <Route path="/workspace" element={<Layout><Workspace /></Layout>} />
+                <Route path="/import" element={<Layout><DataImportPage /></Layout>} />
+                <Route path="/connect" element={<Layout><ConnectAPIs /></Layout>} />
+                <Route path="/cloud-sync" element={<Layout><CloudSync /></Layout>} />
+
+                {/* Header Navigation Routes */}
+                <Route path="/update-history" element={<Layout><Update /></Layout>} />
+                <Route path="/settings" element={<Layout><div className="text-center p-12"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground">Coming Soon</p></div></Layout>} />
+
+                {/* Legacy Routes (without Layout for special pages) */}
                 <Route path="/auth/facebook/callback" element={<FacebookCallback />} />
-                <Route path="/facebook-ads-api" element={<FacebookAdsAPI />} />
+                <Route path="/facebook-ads-api" element={<Layout><FacebookAdsAPI /></Layout>} />
+                <Route path="/facebook-test" element={<FacebookTest />} />
+
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

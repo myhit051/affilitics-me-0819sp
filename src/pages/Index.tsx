@@ -11,6 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import DataImport from "@/components/DataImport";
 import AdPlanning from "@/components/AdPlanning";
 import Settings from "@/components/Settings";
@@ -37,7 +48,7 @@ import PlatformFilter from "@/components/PlatformFilter";
 import ChannelFilter from "@/components/ChannelFilter";
 import { useImportedData } from "@/hooks/useImportedData";
 import { generateTraditionalCampaigns } from "@/utils/affiliateCalculations";
-import { DollarSign, TrendingUp, Target, ShoppingCart, Upload, RotateCcw, AlertTriangle, CheckCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Target, ShoppingCart, Upload, RotateCcw, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
 import AffiliatePerformanceChart from "@/components/AffiliatePerformanceChart";
 import { getProductionConfig } from "@/config/production";
 import { performanceMonitor } from "@/lib/performance-monitor";
@@ -113,11 +124,20 @@ const Index = () => {
     loading: importLoading, 
     processImportedData, 
     resetToOriginalData,
+    clearAllData,
     hasData, 
     rawShopeeCommission,
     rawShopeeOrderCount,
     uniqueShopeeOrderCount
   } = useImportedData();
+
+  // Auto-process data when importedData is loaded from localStorage
+  useEffect(() => {
+    if (importedData && !calculatedMetrics) {
+      console.log('🔄 Auto-processing imported data from localStorage in Index...');
+      processImportedData(importedData, selectedSubIds, selectedValidity, selectedChannels, dateRange, selectedPlatform);
+    }
+  }, [importedData, calculatedMetrics, selectedSubIds, selectedValidity, selectedChannels, dateRange, selectedPlatform]);
 
   // Load data from storedData on app start
   useEffect(() => {
@@ -143,6 +163,14 @@ const Index = () => {
       processImportedData(loadedData, selectedSubIds, selectedValidity, selectedChannels, dateRange, selectedPlatform);
     }
   }, [storedData]);
+
+  // Auto-redirect to import if no data
+  useEffect(() => {
+    if (!hasData && activeView === "dashboard") {
+      console.log('No data available, redirecting to import page');
+      setActiveView("import");
+    }
+  }, [hasData, activeView]);
 
   // Re-process data when filters change (with debouncing for date range)
   useEffect(() => {
@@ -263,12 +291,58 @@ const Index = () => {
             <RotateCcw className="h-4 w-4" />
             รีเซ็ตตัวกรอง
           </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                ล้างข้อมูลทั้งหมด
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>ยืนยันการล้างข้อมูลทั้งหมด</AlertDialogTitle>
+                <AlertDialogDescription>
+                  คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลทั้งหมดที่ import และประมวลผลแล้ว? 
+                  การดำเนินการนี้จะ:
+                  <br />• ลบข้อมูลที่ import ทั้งหมด
+                  <br />• ลบการวิเคราะห์และ metrics ทั้งหมด
+                  <br />• ลบข้อมูลที่เก็บไว้ใน localStorage
+                  <br />• ไม่สามารถกู้คืนได้
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => {
+                    clearAllData();
+                    setOriginalData(null);
+                    setStoredData({
+                      shopee: null,
+                      lazada: null,
+                      facebook: null,
+                    });
+                    // เปลี่ยนไปหน้า import หลังจากล้างข้อมูล
+                    setActiveView("import");
+                  }}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  ล้างข้อมูลทั้งหมด
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
   );
 
   const renderContent = () => {
+    console.log('renderContent - activeView:', activeView, 'hasData:', hasData, 'importedData:', importedData);
+    
     switch (activeView) {
       case "import":
         return (
@@ -313,7 +387,7 @@ const Index = () => {
             )}
             
             {/* Debug: {console.log('Dashboard render - hasData:', hasData, 'importedData:', importedData, 'calculatedMetrics:', calculatedMetrics)} */}
-            {!hasData ? (
+            {!hasData && activeView !== "import" ? (
               <div className="relative min-h-[80vh]">
                 {/* Background Preview */}
                 <div className="absolute inset-0 opacity-8 pointer-events-none">

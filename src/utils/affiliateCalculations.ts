@@ -2,8 +2,10 @@
 
 interface ShopeeOrder {
   'เลขที่คำสั่งซื้อ': string;
+  'รหัสการสั่งซื้อ': string; // เพิ่มฟิลด์ใหม่
   'รหัสสินค้า': string;
   'ชื่อสินค้า': string;
+  'ชื่อรายการสินค้า': string; // เพิ่มฟิลด์ใหม่
   'ราคาสินค้า(฿)': string;
   'คอมมิชชั่นสินค้า(%)': string;
   'คอมมิชชั่นสินค้าโดยรวม(฿)': string;
@@ -13,6 +15,7 @@ interface ShopeeOrder {
   'วิธีการชำระ': string;
   'ผู้ให้บริการโลจิสติกส์': string;
   'ยอดขายสินค้าโดยรวม(฿)': string;
+  'มูลค่าซื้อ(฿)': string; // เพิ่มฟิลด์ใหม่
   'ช่องทาง': string;
   'Sub_id1'?: string;
   'Sub_id2'?: string;
@@ -103,7 +106,24 @@ const parseNumber = (value: string | number | undefined): number => {
   if (typeof value === 'number') return value;
 
   const parsed = parseFloat(value.toString().replace(/[^0-9.-]/g, ''));
-  return isNaN(parsed) ? 0 : parsed;
+  const result = isNaN(parsed) ? 0 : parsed;
+  
+  // Debug logging for commission and amount fields
+  if (typeof value === 'string' && (
+    value.includes('คอมมิชชั่น') || 
+    value.includes('มูลค่า') || 
+    value.includes('Payout') ||
+    value.includes('Amount')
+  )) {
+    console.log('🔍 parseNumber debug:', {
+      originalValue: value,
+      cleanedValue: value.toString().replace(/[^0-9.-]/g, ''),
+      parsed: parsed,
+      result: result
+    });
+  }
+  
+  return result;
 };
 
 function matchSubIdWithAds(subId: string, facebookAds: FacebookAd[]): number {
@@ -202,19 +222,22 @@ export function calculateMetrics(
   
   const uniqueShopeeOrders = new Map();
   filteredShopeeOrders.forEach(order => {
-    const orderId = order['เลขที่คำสั่งซื้อ'];
+    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+    const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
     if (!uniqueShopeeOrders.has(orderId)) {
       // Create a copy of the order to avoid modifying original data
       uniqueShopeeOrders.set(orderId, {
         ...order,
         'คอมมิชชั่นสินค้าโดยรวม(฿)': parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']),
-        'ยอดขายสินค้าโดยรวม(฿)': parseNumber(order['ยอดขายสินค้าโดยรวม(฿)'])
+        'ยอดขายสินค้าโดยรวม(฿)': parseNumber(order['ยอดขายสินค้าโดยรวม(฿)']),
+        'มูลค่าซื้อ(฿)': parseNumber(order['มูลค่าซื้อ(฿)'])
       });
     } else {
       // If duplicate, add commission to existing order
       const existing = uniqueShopeeOrders.get(orderId);
       existing['คอมมิชชั่นสินค้าโดยรวม(฿)'] += parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
       existing['ยอดขายสินค้าโดยรวม(฿)'] += parseNumber(order['ยอดขายสินค้าโดยรวม(฿)']);
+      existing['มูลค่าซื้อ(฿)'] += parseNumber(order['มูลค่าซื้อ(฿)']);
     }
   });
 
@@ -262,10 +285,11 @@ export function calculateMetrics(
 
   const totalOrdersSP = uniqueShopeeOrders.size;
   
+  // เปลี่ยนจากการใช้ 'ยอดขายสินค้าโดยรวม(฿)' เป็น 'มูลค่าซื้อ(฿)'
   const totalAmountSP = Array.from(uniqueShopeeOrders.values()).reduce((sum, order) => {
-    return sum + (typeof order['ยอดขายสินค้าโดยรวม(฿)'] === 'number' 
-      ? order['ยอดขายสินค้าโดยรวม(฿)'] 
-      : parseNumber(order['ยอดขายสินค้าโดยรวม(฿)']));
+    return sum + (typeof order['มูลค่าซื้อ(฿)'] === 'number' 
+      ? order['มูลค่าซื้อ(฿)'] 
+      : parseNumber(order['มูลค่าซื้อ(฿)']));
   }, 0);
 
   // Calculate Lazada metrics - count unique orders by "Check Out ID"
@@ -441,7 +465,30 @@ export function analyzeDailyPerformance(
     const dateStr = ad['Day'] || ad['Date'];
     if (dateStr) {
       try {
-        const adDate = new Date(dateStr);
+        let adDate: Date;
+        
+        // Handle different date formats for Facebook ads
+        if (typeof dateStr === 'string') {
+          const dateStrTrimmed = dateStr.trim();
+          
+          // Handle Thai date format (DD/MM/YYYY)
+          if (dateStrTrimmed.includes('/')) {
+            const parts = dateStrTrimmed.split('/');
+            if (parts.length === 3) {
+              const day = parseInt(parts[0]);
+              const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+              const year = parseInt(parts[2]);
+              adDate = new Date(year, month, day);
+            } else {
+              adDate = new Date(dateStrTrimmed);
+            }
+          } else {
+            adDate = new Date(dateStrTrimmed);
+          }
+        } else {
+          adDate = new Date(dateStr);
+        }
+        
         if (adDate && !isNaN(adDate.getTime())) {
           const dateKey = adDate.toISOString().split('T')[0];
           
@@ -466,7 +513,8 @@ export function analyzeDailyPerformance(
   // Process unique Shopee orders
   const uniqueShopeeOrders = new Map();
   shopeeOrders.forEach(order => {
-    const orderId = order['เลขที่คำสั่งซื้อ'];
+    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+    const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
     if (!uniqueShopeeOrders.has(orderId)) {
       uniqueShopeeOrders.set(orderId, order);
     }
@@ -477,11 +525,34 @@ export function analyzeDailyPerformance(
     let orderDate = null;
     let dateKey = null;
     
-    // Try to parse date from multiple columns
+    // Try to parse date from multiple columns with better date parsing
     for (const column of possibleDateColumns) {
       if (order[column]) {
         try {
-          const parsedDate = new Date(order[column]);
+          let parsedDate: Date;
+          
+          // Handle different date formats
+          if (typeof order[column] === 'string') {
+            const dateStr = order[column].trim();
+            
+            // Handle Thai date format (DD/MM/YYYY)
+            if (dateStr.includes('/')) {
+              const parts = dateStr.split('/');
+              if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+                const year = parseInt(parts[2]);
+                parsedDate = new Date(year, month, day);
+              } else {
+                parsedDate = new Date(dateStr);
+              }
+            } else {
+              parsedDate = new Date(dateStr);
+            }
+          } else {
+            parsedDate = new Date(order[column]);
+          }
+          
           if (parsedDate && !isNaN(parsedDate.getTime())) {
             orderDate = parsedDate;
             dateKey = orderDate.toISOString().split('T')[0];
@@ -525,7 +596,30 @@ export function analyzeDailyPerformance(
     const dateStr = order['Conversion Time'] || order['Order Time'];
     if (dateStr) {
       try {
-        const orderDate = new Date(dateStr);
+        let orderDate: Date;
+        
+        // Handle different date formats for Lazada orders
+        if (typeof dateStr === 'string') {
+          const dateStrTrimmed = dateStr.trim();
+          
+          // Handle Thai date format (DD/MM/YYYY)
+          if (dateStrTrimmed.includes('/')) {
+            const parts = dateStrTrimmed.split('/');
+            if (parts.length === 3) {
+              const day = parseInt(parts[0]);
+              const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+              const year = parseInt(parts[2]);
+              orderDate = new Date(year, month, day);
+            } else {
+              orderDate = new Date(dateStrTrimmed);
+            }
+          } else {
+            orderDate = new Date(dateStrTrimmed);
+          }
+        } else {
+          orderDate = new Date(dateStr);
+        }
+        
         if (orderDate && !isNaN(orderDate.getTime())) {
           const dateKey = orderDate.toISOString().split('T')[0];
           
@@ -666,8 +760,8 @@ export function analyzePlatformPerformance(
   lazadaOrders: LazadaOrder[],
   totalAdsSpent: number
 ): PlatformPerformance[] {
-  // Count unique Shopee orders
-  const uniqueShopeeOrders = new Set(shopeeOrders.map(order => order['เลขที่คำสั่งซื้อ']));
+  // Count unique Shopee orders - เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+  const uniqueShopeeOrders = new Set(shopeeOrders.map(order => order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ']));
   const shopeeCommission = shopeeOrders.reduce((sum, order) => {
     return sum + parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
   }, 0);
@@ -778,7 +872,8 @@ export function generateTraditionalCampaigns(
   Object.entries(shopeeSubIdGroups).forEach(([subId, orders]) => {
     const uniqueOrders = new Map();
     orders.forEach(order => {
-      const orderId = order['เลขที่คำสั่งซื้อ'];
+      // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+      const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
       if (!uniqueOrders.has(orderId)) {
         uniqueOrders.set(orderId, order);
       }

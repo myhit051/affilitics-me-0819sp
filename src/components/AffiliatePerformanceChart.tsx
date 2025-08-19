@@ -164,7 +164,8 @@ export default function AffiliatePerformanceChart({
     // Process unique Shopee orders using "เวลาที่สั่งซื้อ" column
     const uniqueShopeeOrders = new Map();
     filteredShopeeOrders.forEach(order => {
-      const orderId = order['เลขที่คำสั่งซื้อ'];
+      // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
+      const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
       if (!uniqueShopeeOrders.has(orderId)) {
         uniqueShopeeOrders.set(orderId, order);
       }
@@ -174,7 +175,29 @@ export default function AffiliatePerformanceChart({
       const dateStr = order['เวลาที่สั่งซื้อ'];
       if (dateStr) {
         try {
-          const parsedDate = new Date(dateStr);
+          let parsedDate: Date;
+          
+          // Handle different date formats
+          if (typeof dateStr === 'string') {
+            const dateStrTrimmed = dateStr.trim();
+            
+            // Handle Thai date format (DD/MM/YYYY)
+            if (dateStrTrimmed.includes('/')) {
+              const parts = dateStrTrimmed.split('/');
+              if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+                const year = parseInt(parts[2]);
+                parsedDate = new Date(year, month, day);
+              } else {
+                parsedDate = new Date(dateStrTrimmed);
+              }
+            } else {
+              parsedDate = new Date(dateStrTrimmed);
+            }
+          } else {
+            parsedDate = new Date(dateStr);
+          }
           
           if (isValid(parsedDate)) {
             const formattedDate = format(parsedDate, 'yyyy-MM-dd');
@@ -202,7 +225,30 @@ export default function AffiliatePerformanceChart({
       const dateStr = order['Conversion Time'] || order['Order Time'];
       if (dateStr) {
         try {
-          const parsedDate = new Date(dateStr);
+          let parsedDate: Date;
+          
+          // Handle different date formats for Lazada orders
+          if (typeof dateStr === 'string') {
+            const dateStrTrimmed = dateStr.trim();
+            
+            // Handle Thai date format (DD/MM/YYYY)
+            if (dateStrTrimmed.includes('/')) {
+              const parts = dateStrTrimmed.split('/');
+              if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+                const year = parseInt(parts[2]);
+                parsedDate = new Date(year, month, day);
+              } else {
+                parsedDate = new Date(dateStrTrimmed);
+              }
+            } else {
+              parsedDate = new Date(dateStrTrimmed);
+            }
+          } else {
+            parsedDate = new Date(dateStr);
+          }
+          
           if (isValid(parsedDate)) {
             const formattedDate = format(parsedDate, 'yyyy-MM-dd');
             const data = dataMap.get(formattedDate);

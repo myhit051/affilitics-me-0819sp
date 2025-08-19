@@ -14,6 +14,7 @@ export interface FacebookOAuthService {
   handleAuthCallback(code: string, state: string): Promise<FacebookTokens>;
   refreshToken(refreshToken: string): Promise<FacebookTokens>;
   revokeToken(accessToken: string): Promise<void>;
+  validateAndRefreshToken(): Promise<FacebookTokens | null>;
   isAuthenticated(): boolean;
   getStoredTokens(): FacebookTokens | null;
   getStoredTokensAsync(): Promise<FacebookTokens | null>;

@@ -15,7 +15,14 @@ import {
   Users,
   Upload,
   Clock,
-  Facebook
+  Facebook,
+  ShoppingBag,
+  ShoppingCart,
+  Target,
+  Briefcase,
+  Zap,
+  Database,
+  Link
 } from "lucide-react";
 
 interface SidebarLinkProps {
@@ -121,7 +128,14 @@ export default function Sidebar({
       </div>
 
       <div className="px-2 mt-6 space-y-6">
+        {/* ANALYTICS Section */}
         <div className="space-y-1">
+          <p className={cn(
+            "text-xs uppercase text-sidebar-foreground/60 mb-3 px-3 font-semibold",
+            collapsed && "text-center"
+          )}>
+            {collapsed ? "📈" : "📈 ANALYTICS"}
+          </p>
           <SidebarLink 
             icon={LayoutDashboard} 
             label="Dashboard" 
@@ -130,91 +144,90 @@ export default function Sidebar({
             onClick={() => handleNavigation("dashboard")}
           />
           <SidebarLink 
-            icon={Facebook} 
-            label="Facebook Ads Real-Time" 
-            active={activeView === "facebook-ads"}
+            icon={ShoppingBag} 
+            label="Shopee Affiliate" 
+            active={activeView === "shopee"}
             collapsed={collapsed}
-            onClick={() => handleNavigation("facebook-ads")}
+            onClick={() => handleNavigation("shopee")}
           />
           <SidebarLink 
-            icon={TrendingUp} 
+            icon={ShoppingCart} 
+            label="Lazada Affiliate" 
+            active={activeView === "lazada"}
+            collapsed={collapsed}
+            onClick={() => handleNavigation("lazada")}
+          />
+          <SidebarLink 
+            icon={Facebook} 
+            label="Facebook Ads (File)" 
+            active={activeView === "facebook-file"}
+            collapsed={collapsed}
+            onClick={() => handleNavigation("facebook-file")}
+          />
+          <SidebarLink 
+            icon={Target} 
             label="Ad Planning" 
             active={activeView === "planning"}
             collapsed={collapsed}
             onClick={() => handleNavigation("planning")}
           />
           <SidebarLink 
-            icon={Upload} 
-            label="Import Data File" 
-            active={activeView === "import"}
+            icon={Briefcase} 
+            label="Workspace" 
+            active={activeView === "workspace"}
             collapsed={collapsed}
-            onClick={() => handleNavigation("import")}
-          />
-          <SidebarLink 
-            icon={Clock} 
-            label="Update History" 
-            active={activeView === "update"}
-            collapsed={collapsed}
-            onClick={() => handleNavigation("update")}
-          />
-          <SidebarLink 
-            icon={Settings} 
-            label="Settings" 
-            active={activeView === "settings"}
-            collapsed={collapsed}
-            onClick={() => handleNavigation("settings")}
+            onClick={() => handleNavigation("workspace")}
           />
         </div>
 
+        {/* LIVE DATA Section */}
         <div className="pt-4 border-t border-sidebar-border">
           <p className={cn(
-            "text-xs uppercase text-sidebar-foreground/60 mb-2 px-3",
+            "text-xs uppercase text-sidebar-foreground/60 mb-3 px-3 font-semibold",
             collapsed && "text-center"
           )}>
-            {collapsed ? "More" : "Analytics"}
+            {collapsed ? "🚀" : "🚀 LIVE DATA"}
           </p>
           <div className="space-y-1">
             <SidebarLink 
-              icon={List} 
-              label="Sub ID Analysis" 
-              active={false}
+              icon={Zap} 
+              label="Facebook Ads (Live)" 
+              active={activeView === "facebook-live"}
               collapsed={collapsed}
-              onClick={() => {}}
+              onClick={() => handleNavigation("facebook-live")}
+            />
+          </div>
+        </div>
+
+        {/* MANAGEMENT Section */}
+        <div className="pt-4 border-t border-sidebar-border">
+          <p className={cn(
+            "text-xs uppercase text-sidebar-foreground/60 mb-3 px-3 font-semibold",
+            collapsed && "text-center"
+          )}>
+            {collapsed ? "⚙️" : "⚙️ MANAGEMENT"}
+          </p>
+          <div className="space-y-1">
+            <SidebarLink 
+              icon={Upload} 
+              label="Data Import" 
+              active={activeView === "import"}
+              collapsed={collapsed}
+              onClick={() => handleNavigation("import")}
             />
             <SidebarLink 
-              icon={Star} 
-              label="Top ROI" 
-              active={false}
+              icon={Link} 
+              label="Connect APIs" 
+              active={activeView === "connect"}
               collapsed={collapsed}
-              onClick={() => {}}
+              onClick={() => handleNavigation("connect")}
             />
             <SidebarLink 
-              icon={LineChart} 
-              label="Market Insights" 
-              active={false}
+              icon={Database} 
+              label="Cloud Sync" 
+              active={activeView === "cloud-sync"}
               collapsed={collapsed}
-              onClick={() => {}}
-            />
-            <SidebarLink 
-              icon={Wallet} 
-              label="Portfolios" 
-              active={false}
-              collapsed={collapsed}
-              onClick={() => {}}
-            />
-            <SidebarLink 
-              icon={Users} 
-              label="Social Trends" 
-              active={false}
-              collapsed={collapsed}
-              onClick={() => {}}
-            />
-            <SidebarLink 
-              icon={BarChart4} 
-              label="Facebook Ads Real-Time" 
-              active={activeView === "facebook-ads" || window.location.pathname === "/facebook-ads-api"}
-              collapsed={collapsed}
-              onClick={() => { window.location.href = "/facebook-ads-api"; }}
+              onClick={() => handleNavigation("cloud-sync")}
             />
           </div>
         </div>
