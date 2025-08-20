@@ -8,7 +8,7 @@ import DateRangeSelector from "@/components/DateRangeSelector";
 import SubIdFilter from "@/components/SubIdFilter";
 import ChannelFilter from "@/components/ChannelFilter";
 import { useImportedData } from "@/hooks/useImportedData";
-import { ShoppingBag, TrendingUp, Target, DollarSign, RotateCcw, Upload } from "lucide-react";
+import { ShoppingBag, TrendingUp, Target, DollarSign, RotateCcw, Upload, List } from "lucide-react";
 
 export default function ShopeeAffiliate() {
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
@@ -98,6 +98,9 @@ export default function ShopeeAffiliate() {
           ? order['คอมมิชชั่นสินค้าโดยรวม(฿)']
           : parseFloat(order['คอมมิชชั่นสินค้าโดยรวม(฿)'] || '0'));
       }, 0);
+      
+      // ปัดเศษเป็น 2 ตำแหน่งทศนิยม
+      totalCommission = Math.round(totalCommission * 100) / 100;
 
       totalOrders = uniqueShopeeOrders.size;
 
@@ -237,6 +240,32 @@ export default function ShopeeAffiliate() {
     setSelectedChannels([]);
     setDateRange(undefined);
   };
+
+  // Get latest 20 orders for All List table
+  const getLatestOrders = () => {
+    if (!shopeeOrders.length) return [];
+    
+    // Sort by time (newest first) and take latest 20
+    const sortedOrders = [...shopeeOrders].sort((a, b) => {
+      const timeA = new Date(a['เวลาที่สั่งซื้อ'] || a['วันที่สั่งซื้อ'] || '');
+      const timeB = new Date(b['เวลาที่สั่งซื้อ'] || b['วันที่สั่งซื้อ'] || '');
+      return timeB.getTime() - timeA.getTime();
+    });
+    
+    return sortedOrders.slice(0, 20);
+  };
+
+  const latestOrders = getLatestOrders();
+
+  // Debug logging for table data
+  console.log('🔍 All List Table Debug:', {
+    totalOrders: latestOrders.length,
+    sampleOrders: latestOrders.slice(0, 3).map(order => ({
+      orderId: order['รหัสการสั่งซื้อ'],
+      commission: order['คอมมิชชั่นสินค้าโดยรวม(฿)'],
+      status: order['สถานะสินค้า Affiliate']
+    }))
+  });
 
   if (loading) {
     return (
@@ -435,6 +464,113 @@ export default function ShopeeAffiliate() {
           </CardContent>
         </Card>
       </div>
+
+      {/* All List Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <List className="h-5 w-5 text-orange-500" />
+            All List (Latest 20 Orders)
+          </CardTitle>
+          <CardDescription>รายการคำสั่งซื้อล่าสุด 20 รายการ</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full" key={`all-list-${latestOrders.length}`}>
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3 font-medium text-sm">รหัสการสั่งซื้อ</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">สถานะการสั่งซื้อ</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">เวลาที่สั่งซื้อ</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">ชื่อรายการสินค้า</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">L1 หมวดหมู่สากล</th>
+                  <th className="text-right py-2 px-3 font-medium text-sm">มูลค่าซื้อ(฿)</th>
+                  <th className="text-right py-2 px-3 font-medium text-sm">คอมมิชชั่น(฿)</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">สถานะสินค้า Affiliate</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">Sub_id1</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">Sub_id2</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">Sub_id3</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">Sub_id4</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">Sub_id5</th>
+                  <th className="text-left py-2 px-3 font-medium text-sm">ช่องทาง</th>
+                </tr>
+              </thead>
+              <tbody>
+                {latestOrders.map((order, index) => (
+                  <tr key={index} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2 px-3 text-sm">
+                      <div className="font-mono text-xs max-w-[120px] truncate" title={order['รหัสการสั่งซื้อ']}>
+                        {order['รหัสการสั่งซื้อ']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <Badge variant={order['สถานะการสั่งซื้อ'] === 'สำเร็จ' ? 'default' : 'secondary'}>
+                        {order['สถานะการสั่งซื้อ']}
+                      </Badge>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[140px] truncate" title={order['เวลาที่สั่งซื้อ']}>
+                        {order['เวลาที่สั่งซื้อ']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[200px] truncate" title={order['ชื่อรายการสินค้า']}>
+                        {order['ชื่อรายการสินค้า']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[120px] truncate" title={order['L1 หมวดหมู่สากล']}>
+                        {order['L1 หมวดหมู่สากล']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-right text-sm font-semibold">
+                      ฿{formatCurrency(parseFloat(order['มูลค่าซื้อ(฿)'] || '0'))}
+                    </td>
+                    <td className="py-2 px-3 text-right text-sm font-semibold text-orange-600">
+                      ฿{formatCurrency(parseFloat(order['คอมมิชชั่นสินค้าโดยรวม(฿)'] || '0'))}
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[120px] truncate" title={order['สถานะสินค้า Affiliate']}>
+                        {order['สถานะสินค้า Affiliate']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[80px] truncate" title={order['Sub_id1']}>
+                        {order['Sub_id1']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[80px] truncate" title={order['Sub_id2']}>
+                        {order['Sub_id2']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[80px] truncate" title={order['Sub_id3']}>
+                        {order['Sub_id3']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[80px] truncate" title={order['Sub_id4']}>
+                        {order['Sub_id4']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <div className="max-w-[80px] truncate" title={order['Sub_id5']}>
+                        {order['Sub_id5']}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-sm">
+                      <Badge variant="outline">
+                        {order['ช่องทาง']}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

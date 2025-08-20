@@ -30,6 +30,8 @@ interface DailyData {
   adSpend: number;
   profit: number;
   roi: number;
+  ordersSP: number;
+  ordersLZD: number;
 }
 
 type SortField = keyof DailyData;

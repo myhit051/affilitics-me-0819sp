@@ -40,7 +40,10 @@ export default function DataImportPage() {
       };
       
       localStorage.setItem('affiliateMetrics', JSON.stringify(basicMetrics));
-      console.log('✅ Data saved to localStorage:', basicMetrics);
+      console.log('✅ Data saved to localStorage:', {
+        affiliateData: data,
+        basicMetrics: basicMetrics
+      });
       
       // Force reload the page to ensure data is loaded properly
       setTimeout(() => {

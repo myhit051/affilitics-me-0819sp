@@ -216,14 +216,21 @@ export function calculateMetrics(
     );
   }
 
-  // Calculate Shopee metrics - count unique orders by "เลขที่คำสั่งซื้อ"
+  // Calculate Shopee metrics - count unique orders by "รหัสการสั่งซื้อ" and exclude cancelled orders
   console.log('calculateMetrics - filteredShopeeOrders count:', filteredShopeeOrders.length);
   console.log('calculateMetrics - sample Shopee order:', filteredShopeeOrders[0]);
   
   const uniqueShopeeOrders = new Map();
   filteredShopeeOrders.forEach(order => {
-    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
-    const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
+    // ใช้ 'รหัสการสั่งซื้อ' เป็น key หลัก และไม่นับออเดอร์ที่ยกเลิก
+    const orderId = order['รหัสการสั่งซื้อ'];
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    
+    // ข้ามออเดอร์ที่ยกเลิก
+    if (orderStatus === 'ยกเลิก' || orderStatus === 'cancelled') {
+      return;
+    }
+    
     if (!uniqueShopeeOrders.has(orderId)) {
       // Create a copy of the order to avoid modifying original data
       uniqueShopeeOrders.set(orderId, {
@@ -248,6 +255,9 @@ export function calculateMetrics(
     return sum + commission;
   }, 0);
   
+  // ปัดเศษเป็น 2 ตำแหน่งทศนิยม
+  const roundedTotalComSP = Math.round(totalComSP * 100) / 100;
+  
   // Debug: Show raw vs calculated totals
   const rawShopeeTotal = filteredShopeeOrders.reduce((sum, order) => {
     return sum + parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
@@ -256,11 +266,24 @@ export function calculateMetrics(
   console.log('🔍 SHOPEE COMMISSION DEBUG:');
   console.log('Raw total (all filtered orders):', rawShopeeTotal);
   console.log('Calculated total (after dedup):', totalComSP);
+  console.log('Rounded total (2 decimal places):', roundedTotalComSP);
   console.log('Difference:', rawShopeeTotal - totalComSP);
 
   console.log('calculateMetrics - uniqueShopeeOrders count:', uniqueShopeeOrders.size);
   console.log('calculateMetrics - totalComSP:', totalComSP);
+  console.log('calculateMetrics - roundedTotalComSP:', roundedTotalComSP);
   console.log('🔍 SHOPEE DEBUG - filteredShopeeOrders.length:', filteredShopeeOrders.length);
+  
+  // Debug: Show unique order IDs for verification
+  console.log('🔍 UNIQUE ORDER IDs:', Array.from(uniqueShopeeOrders.keys()));
+  
+  // Debug: Count cancelled orders
+  const cancelledOrders = filteredShopeeOrders.filter(order => {
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    return orderStatus === 'ยกเลิก' || orderStatus === 'cancelled';
+  });
+  console.log('🔍 CANCELLED ORDERS COUNT:', cancelledOrders.length);
+  console.log('🔍 CANCELLED ORDER STATUSES:', [...new Set(cancelledOrders.map(order => order['สถานะการสั่งซื้อ'] || order['สถานะ']))]);
   
   // Debug: Check sample Shopee order and commission fields
   if (filteredShopeeOrders.length > 0) {
@@ -394,15 +417,15 @@ export function calculateMetrics(
 
   const metrics: CalculatedMetrics = {
     totalAdsSpent,
-    totalComSP,
+    totalComSP: roundedTotalComSP, // ใช้ค่าที่ปัดเศษแล้ว
     totalComLZD,
-    totalCom,
+    totalCom: roundedTotalComSP + totalComLZD, // รวมค่าที่ปัดเศษแล้ว
     totalOrdersSP,
     totalOrdersLZD,
     totalAmountSP,
     totalAmountLZD,
-    profit,
-    roi,
+    profit: (roundedTotalComSP + totalComLZD) - totalAdsSpent, // คำนวณ profit ใหม่
+    roi: totalAdsSpent > 0 ? (((roundedTotalComSP + totalComLZD) - totalAdsSpent) / totalAdsSpent) * 100 : 0, // คำนวณ ROI ใหม่
     cpoSP,
     cpoLZD,
     cpcLink: avgCpcLink,
@@ -411,8 +434,8 @@ export function calculateMetrics(
     invalidOrdersLZD,
     totalLinkClicks,
     totalReach,
-    totalRevenue: totalCom,
-    totalProfit: profit,
+    totalRevenue: roundedTotalComSP + totalComLZD, // ใช้ค่าที่ปัดเศษแล้ว
+    totalProfit: (roundedTotalComSP + totalComLZD) - totalAdsSpent, // คำนวณ profit ใหม่
     revenueChange: 0,
     profitChange: 0,
     roiChange: 0,
@@ -445,6 +468,8 @@ export interface DailyMetrics {
   adSpend: number;
   profit: number;
   roi: number;
+  ordersSP: number; // เพิ่มฟิลด์สำหรับนับ Shopee orders
+  ordersLZD: number; // เพิ่มฟิลด์สำหรับนับ Lazada orders
 }
 
 export function analyzeDailyPerformance(
@@ -452,11 +477,19 @@ export function analyzeDailyPerformance(
   lazadaOrders: LazadaOrder[],
   facebookAds: FacebookAd[]
 ): DailyMetrics[] {
-  console.log('analyzeDailyPerformance called with:', {
+  console.log('🔍 analyzeDailyPerformance called with:', {
     shopeeCount: shopeeOrders.length,
     lazadaCount: lazadaOrders.length,
     facebookCount: facebookAds.length
   });
+  
+  // Debug: Log first few Shopee orders
+  console.log('🔍 FIRST 3 SHOPEE ORDERS:', shopeeOrders.slice(0, 3).map(order => ({
+    orderId: order['รหัสการสั่งซื้อ'],
+    timeOrder: order['เวลาที่สั่งซื้อ'],
+    dateOrder: order['วันที่สั่งซื้อ'],
+    status: order['สถานะการสั่งซื้อ'] || order['สถานะ']
+  })));
   
   const dailyMap: { [key: string]: DailyMetrics } = {};
 
@@ -498,7 +531,9 @@ export function analyzeDailyPerformance(
               totalCom: 0,
               adSpend: 0,
               profit: 0,
-              roi: 0
+              roi: 0,
+              ordersSP: 0,
+              ordersLZD: 0
             };
           }
           
@@ -510,20 +545,43 @@ export function analyzeDailyPerformance(
     }
   });
 
-  // Process unique Shopee orders
-  const uniqueShopeeOrders = new Map();
+  // Process Shopee orders - combine commission for same order ID
+  const orderCommissionMap = new Map();
   shopeeOrders.forEach(order => {
-    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
-    const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
-    if (!uniqueShopeeOrders.has(orderId)) {
-      uniqueShopeeOrders.set(orderId, order);
+    const orderId = order['รหัสการสั่งซื้อ'];
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    
+    // ข้ามออเดอร์ที่ยกเลิก
+    if (orderStatus === 'ยกเลิก' || orderStatus === 'cancelled') {
+      return;
+    }
+    
+    const commission = parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
+    
+    if (!orderCommissionMap.has(orderId)) {
+      orderCommissionMap.set(orderId, {
+        order: order,
+        totalCommission: commission
+      });
+    } else {
+      // Add commission to existing order
+      const existing = orderCommissionMap.get(orderId);
+      existing.totalCommission += commission;
     }
   });
+  
+  console.log('🔍 ORDER COMMISSION SUMMARY:', {
+    totalOrders: shopeeOrders.length,
+    uniqueOrders: orderCommissionMap.size,
+    uniqueOrderIds: Array.from(orderCommissionMap.keys())
+  });
 
-  Array.from(uniqueShopeeOrders.values()).forEach(order => {
+  Array.from(orderCommissionMap.values()).forEach(({ order, totalCommission }) => {
     const possibleDateColumns = ['เวลาที่สั่งซื้อ', 'วันที่สั่งซื้อ', 'Order Time', 'Order Date', 'Date'];
     let orderDate = null;
     let dateKey = null;
+    
+
     
     // Try to parse date from multiple columns with better date parsing
     for (const column of possibleDateColumns) {
@@ -547,7 +605,14 @@ export function analyzeDailyPerformance(
                 parsedDate = new Date(dateStr);
               }
             } else {
-              parsedDate = new Date(dateStr);
+              // Handle ISO date format (YYYY-MM-DD HH:mm:ss)
+              if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+                const [datePart, timePart] = dateStr.split(' ');
+                const [year, month, day] = datePart.split('-').map(Number);
+                parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+              } else {
+                parsedDate = new Date(dateStr);
+              }
             }
           } else {
             parsedDate = new Date(order[column]);
@@ -555,11 +620,18 @@ export function analyzeDailyPerformance(
           
           if (parsedDate && !isNaN(parsedDate.getTime())) {
             orderDate = parsedDate;
-            dateKey = orderDate.toISOString().split('T')[0];
+            // Use local date instead of UTC to avoid timezone issues
+            const year = orderDate.getFullYear();
+            const month = String(orderDate.getMonth() + 1).padStart(2, '0');
+            const day = String(orderDate.getDate()).padStart(2, '0');
+            dateKey = `${year}-${month}-${day}`;
+            
+
+            
             break;
           }
         } catch (error) {
-          // Continue to next column
+          console.log('🔍 DATE PARSING ERROR:', error, 'for column:', column, 'value:', order[column]);
         }
       }
     }
@@ -568,6 +640,7 @@ export function analyzeDailyPerformance(
     if (!dateKey) {
       const today = new Date();
       dateKey = today.toISOString().split('T')[0];
+      console.log('🔍 USING FALLBACK DATE:', dateKey);
     }
     
     if (!dailyMap[dateKey]) {
@@ -576,11 +649,16 @@ export function analyzeDailyPerformance(
         totalCom: 0,
         adSpend: 0,
         profit: 0,
-        roi: 0
+        roi: 0,
+        ordersSP: 0,
+        ordersLZD: 0
       };
     }
     
-    dailyMap[dateKey].totalCom += parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
+    dailyMap[dateKey].totalCom += totalCommission;
+    dailyMap[dateKey].ordersSP += 1; // เพิ่มการนับ Shopee orders
+    
+
   });
 
   // Process unique Lazada orders
@@ -629,11 +707,14 @@ export function analyzeDailyPerformance(
               totalCom: 0,
               adSpend: 0,
               profit: 0,
-              roi: 0
+              roi: 0,
+              ordersSP: 0,
+              ordersLZD: 0
             };
           }
           
           dailyMap[dateKey].totalCom += parseNumber(order['Payout']);
+          dailyMap[dateKey].ordersLZD += 1; // เพิ่มการนับ Lazada orders
         }
       } catch (error) {
         // Skip invalid dates
@@ -653,6 +734,8 @@ export function analyzeDailyPerformance(
     sampleData: result.slice(0, 3)
   });
   
+
+  
   return result;
 }
 
@@ -667,7 +750,14 @@ export function analyzeSubIdPerformance(
   // Process unique Shopee orders
   const uniqueShopeeOrders = new Map();
   shopeeOrders.forEach(order => {
-    const orderId = order['เลขที่คำสั่งซื้อ'];
+    const orderId = order['รหัสการสั่งซื้อ'];
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    
+    // ข้ามออเดอร์ที่ยกเลิก
+    if (orderStatus === 'ยกเลิก' || orderStatus === 'cancelled') {
+      return;
+    }
+    
     if (!uniqueShopeeOrders.has(orderId)) {
       uniqueShopeeOrders.set(orderId, order);
     }
@@ -760,11 +850,21 @@ export function analyzePlatformPerformance(
   lazadaOrders: LazadaOrder[],
   totalAdsSpent: number
 ): PlatformPerformance[] {
-  // Count unique Shopee orders - เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
-  const uniqueShopeeOrders = new Set(shopeeOrders.map(order => order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ']));
-  const shopeeCommission = shopeeOrders.reduce((sum, order) => {
-    return sum + parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
-  }, 0);
+  // Count unique Shopee orders - ใช้ 'รหัสการสั่งซื้อ' และไม่นับออเดอร์ที่ยกเลิก
+  const uniqueShopeeOrders = new Set();
+  let shopeeCommission = 0;
+  
+  shopeeOrders.forEach(order => {
+    const orderId = order['รหัสการสั่งซื้อ'];
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    
+    // ข้ามออเดอร์ที่ยกเลิก
+    if (orderStatus !== 'ยกเลิก' && orderStatus !== 'cancelled') {
+      uniqueShopeeOrders.add(orderId);
+      shopeeCommission += parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
+    }
+  });
+  
   const shopeeOrdersCount = uniqueShopeeOrders.size;
   const shopeeROI = totalAdsSpent > 0 ? (shopeeCommission / totalAdsSpent) * 100 : 0;
 
@@ -818,9 +918,18 @@ export function analyzePlatformPerformance(
   return platformData;
 }
 
-// รวมยอดคอมมิชชั่น Shopee ทุกแถว (ไม่ deduplicate)
+// รวมยอดคอมมิชชั่น Shopee ทุกแถว (ไม่ deduplicate แต่ไม่นับออเดอร์ที่ยกเลิก)
 export function sumShopeeCommissionRaw(shopeeOrders: ShopeeOrder[]): number {
-  return shopeeOrders.reduce((sum, order) => sum + parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']), 0);
+  return shopeeOrders.reduce((sum, order) => {
+    const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+    
+    // ข้ามออเดอร์ที่ยกเลิก
+    if (orderStatus === 'ยกเลิก' || orderStatus === 'cancelled') {
+      return sum;
+    }
+    
+    return sum + parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
+  }, 0);
 }
 
 // Interface for traditional campaign data
@@ -872,8 +981,14 @@ export function generateTraditionalCampaigns(
   Object.entries(shopeeSubIdGroups).forEach(([subId, orders]) => {
     const uniqueOrders = new Map();
     orders.forEach(order => {
-      // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
-      const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
+      const orderId = order['รหัสการสั่งซื้อ'];
+      const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+      
+      // ข้ามออเดอร์ที่ยกเลิก
+      if (orderStatus === 'ยกเลิก' || orderStatus === 'cancelled') {
+        return;
+      }
+      
       if (!uniqueOrders.has(orderId)) {
         uniqueOrders.set(orderId, order);
       }
@@ -888,7 +1003,17 @@ export function generateTraditionalCampaigns(
 
     // Get the latest order date
     const latestDate = Array.from(uniqueOrders.values()).reduce((latest, order) => {
-      const orderDate = new Date(order['วันที่สั่งซื้อ'] || order['เวลาที่สั่งซื้อ'] || '');
+      const dateStr = order['เวลาที่สั่งซื้อ'] || order['วันที่สั่งซื้อ'] || '';
+      let orderDate: Date;
+      
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        orderDate = new Date(year, month - 1, day);
+      } else {
+        orderDate = new Date(dateStr);
+      }
+      
       return orderDate > latest ? orderDate : latest;
     }, new Date(0));
 
@@ -909,7 +1034,7 @@ export function generateTraditionalCampaigns(
       adSpend: Math.round(adSpent * 100) / 100,
       roi: Math.round(roi * 10) / 10,
       status: uniqueOrders.size > 0 ? 'active' : 'paused',
-      startDate: latestDate.toISOString().split('T')[0],
+      startDate: `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')}-${String(latestDate.getDate()).padStart(2, '0')}`,
       performance: getPerformanceLabel(roi)
     });
   });
@@ -954,7 +1079,17 @@ export function generateTraditionalCampaigns(
 
     // Get the latest order date
     const latestDate = Array.from(uniqueOrders.values()).reduce((latest, order) => {
-      const orderDate = new Date(order['Order Time'] || '');
+      const dateStr = order['Order Time'] || '';
+      let orderDate: Date;
+      
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        orderDate = new Date(year, month - 1, day);
+      } else {
+        orderDate = new Date(dateStr);
+      }
+      
       return orderDate > latest ? orderDate : latest;
     }, new Date(0));
 
@@ -975,7 +1110,7 @@ export function generateTraditionalCampaigns(
       adSpend: Math.round(adSpent * 100) / 100,
       roi: Math.round(roi * 10) / 10,
       status: uniqueOrders.size > 0 ? 'active' : 'paused',
-      startDate: latestDate.toISOString().split('T')[0],
+      startDate: `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')}-${String(latestDate.getDate()).padStart(2, '0')}`,
       performance: getPerformanceLabel(roi)
     });
   });

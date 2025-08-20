@@ -24,6 +24,24 @@ export default function LazadaAffiliate() {
 
   const lazadaOrders = importedData?.lazadaOrders || [];
 
+  // Debug logging
+  console.log('🔍 LAZADA AFFILIATE DEBUG:', {
+    hasData,
+    lazadaOrdersLength: lazadaOrders.length,
+    importedDataKeys: importedData ? Object.keys(importedData) : null,
+    sampleLazadaOrder: lazadaOrders.length > 0 ? lazadaOrders[0] : null
+  });
+
+  // Parse numbers safely
+  const parseNumber = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
   const getLazadaStats = () => {
     if (!hasData || !lazadaOrders.length) {
       return {
@@ -37,50 +55,123 @@ export default function LazadaAffiliate() {
     }
 
     const filteredOrders = lazadaOrders.filter(order => {
+      // Filter out invalid orders
+      if (order['Validity'] === 'invalid') return false;
+      
       // Apply filters
-      if (selectedSubIds.length > 0 && !selectedSubIds.includes(order.subId)) return false;
-      if (selectedChannels.length > 0 && !selectedChannels.includes(order.channel)) return false;
-      if (dateRange?.from && new Date(order.date) < dateRange.from) return false;
-      if (dateRange?.to && new Date(order.date) > dateRange.to) return false;
+      if (selectedSubIds.length > 0) {
+        const orderSubIds = [
+          order['Aff Sub ID'],
+          order['Sub ID 1'],
+          order['Sub ID 2'],
+          order['Sub ID 3'],
+          order['Sub ID 4']
+        ].filter(Boolean);
+        if (!orderSubIds.some(subId => selectedSubIds.includes(subId))) return false;
+      }
+      
+      // Apply date filter
+      if (dateRange?.from || dateRange?.to) {
+        const orderDate = new Date(order['Conversion Time']);
+        if (dateRange?.from && orderDate < dateRange.from) return false;
+        if (dateRange?.to && orderDate > dateRange.to) return false;
+      }
       return true;
     });
 
-    const totalCommission = filteredOrders.reduce((sum, order) => sum + (order.commission || 0), 0);
-    const totalAmount = filteredOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    const totalOrders = filteredOrders.length;
+    // Count unique orders by Check Out ID
+    const uniqueOrderIds = new Set();
+    filteredOrders.forEach(order => {
+      const checkoutId = order['Check Out ID'];
+      if (checkoutId) {
+        uniqueOrderIds.add(checkoutId);
+      }
+    });
+
+    console.log('🔍 LAZADA STATS DEBUG:', {
+      originalOrders: lazadaOrders.length,
+      filteredOrders: filteredOrders.length,
+      uniqueOrders: uniqueOrderIds.size,
+      totalCommission: filteredOrders.reduce((sum, order) => sum + parseNumber(order['Payout']), 0),
+      totalAmount: filteredOrders.reduce((sum, order) => sum + parseNumber(order['Order Amount']), 0),
+      sampleOrder: filteredOrders.length > 0 ? filteredOrders[0] : null,
+      validityCounts: {
+        valid: lazadaOrders.filter(order => order['Validity'] === 'valid').length,
+        invalid: lazadaOrders.filter(order => order['Validity'] === 'invalid').length,
+        undefined: lazadaOrders.filter(order => !order['Validity']).length
+      }
+    });
+
+    const totalCommission = filteredOrders.reduce((sum, order) => sum + parseNumber(order['Payout']), 0);
+    const totalAmount = filteredOrders.reduce((sum, order) => sum + parseNumber(order['Order Amount']), 0);
+    const totalOrders = uniqueOrderIds.size;
     const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
 
-    // Top products
+    // Top products - count unique orders by Check Out ID
     const productStats = filteredOrders.reduce((acc, order) => {
-      const product = order.productName || 'Unknown Product';
+      const product = order['Product Name'] || order['Product'] || 'Unknown Product';
+      const checkoutId = order['Check Out ID'];
+      
       if (!acc[product]) {
-        acc[product] = { commission: 0, orders: 0, amount: 0 };
+        acc[product] = { 
+          commission: 0, 
+          orders: new Set(), 
+          amount: 0,
+          orderIds: new Set()
+        };
       }
-      acc[product].commission += order.commission || 0;
-      acc[product].amount += order.amount || 0;
-      acc[product].orders += 1;
+      
+      acc[product].commission += parseNumber(order['Payout']);
+      acc[product].amount += parseNumber(order['Order Amount']);
+      if (checkoutId) {
+        acc[product].orderIds.add(checkoutId);
+      }
+      
       return acc;
-    }, {} as Record<string, { commission: number; orders: number; amount: number }>);
+    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }>);
 
+    // Convert Set to count for final result
     const topProducts = Object.entries(productStats)
-      .map(([product, stats]) => ({ product, ...stats }))
+      .map(([product, stats]) => ({ 
+        product, 
+        commission: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).commission, 
+        orders: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).orderIds.size, 
+        amount: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).amount 
+      }))
       .sort((a, b) => b.commission - a.commission)
       .slice(0, 10);
 
-    // Top Sub IDs
+    // Top Sub IDs - count unique orders by Check Out ID
     const subIdStats = filteredOrders.reduce((acc, order) => {
-      const subId = order.subId || 'Unknown';
-      if (!acc[subId]) {
-        acc[subId] = { commission: 0, orders: 0, amount: 0 };
-      }
-      acc[subId].commission += order.commission || 0;
-      acc[subId].amount += order.amount || 0;
-      acc[subId].orders += 1;
+      const subIds = [
+        order['Aff Sub ID'],
+        order['Sub ID 1'],
+        order['Sub ID 2'],
+        order['Sub ID 3'],
+        order['Sub ID 4']
+      ].filter(Boolean);
+      const checkoutId = order['Check Out ID'];
+      
+      subIds.forEach(subId => {
+        if (!acc[subId]) {
+          acc[subId] = { commission: 0, orders: new Set(), amount: 0, orderIds: new Set() };
+        }
+        acc[subId].commission += parseNumber(order['Payout']);
+        acc[subId].amount += parseNumber(order['Order Amount']);
+        if (checkoutId) {
+          acc[subId].orderIds.add(checkoutId);
+        }
+      });
       return acc;
-    }, {} as Record<string, { commission: number; orders: number; amount: number }>);
+    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }>);
 
     const topSubIds = Object.entries(subIdStats)
-      .map(([subId, stats]) => ({ subId, ...stats }))
+      .map(([subId, stats]) => ({ 
+        subId, 
+        commission: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).commission, 
+        orders: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).orderIds.size, 
+        amount: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).amount 
+      }))
       .sort((a, b) => b.commission - a.commission)
       .slice(0, 10);
 
@@ -199,7 +290,7 @@ export default function LazadaAffiliate() {
           animationDelay="0ms"
         />
         <StatsCard
-          title="Total Amount"
+          title="Total Sales"
           value={formatCurrency(stats.totalAmount)}
           change={0}
           icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
@@ -235,22 +326,37 @@ export default function LazadaAffiliate() {
             <CardDescription>สินค้าที่ทำรายได้สูงสุด</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {stats.topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium text-sm truncate">{product.product}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {product.orders} orders • ฿{formatCurrency(product.amount)} total
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-purple-600">
-                      ฿{formatCurrency(product.commission)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-sm">Products</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Com</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Order</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Sales</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.topProducts.map((product, index) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="py-2 px-3">
+                        <div className="font-medium text-sm max-w-[200px] truncate" title={product.product}>
+                          {product.product.length > 30 ? product.product.substring(0, 30) + '...' : product.product}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-right font-semibold text-purple-600">
+                        ฿{formatCurrency(product.commission)}
+                      </td>
+                      <td className="py-2 px-3 text-right text-sm text-muted-foreground">
+                        {product.orders}
+                      </td>
+                      <td className="py-2 px-3 text-right font-semibold text-purple-600">
+                        ฿{formatCurrency(product.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
@@ -264,22 +370,37 @@ export default function LazadaAffiliate() {
             <CardDescription>Sub ID ที่ทำรายได้สูงสุด</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {stats.topSubIds.map((subId, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium">{subId.subId}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {subId.orders} orders • ฿{formatCurrency(subId.amount)} total
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-purple-600">
-                      ฿{formatCurrency(subId.commission)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-sm">Sub ID</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Com</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Order</th>
+                    <th className="text-right py-2 px-3 font-medium text-sm">Total Sales</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.topSubIds.map((subId, index) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="py-2 px-3">
+                        <div className="font-medium text-sm max-w-[150px] truncate" title={subId.subId}>
+                          {subId.subId.length > 20 ? subId.subId.substring(0, 20) + '...' : subId.subId}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-right font-semibold text-purple-600">
+                        ฿{formatCurrency(subId.commission)}
+                      </td>
+                      <td className="py-2 px-3 text-right text-sm text-muted-foreground">
+                        {subId.orders}
+                      </td>
+                      <td className="py-2 px-3 text-right font-semibold text-purple-600">
+                        ฿{formatCurrency(subId.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>

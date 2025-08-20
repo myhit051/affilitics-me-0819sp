@@ -16,6 +16,8 @@ interface DailyData {
   adSpend: number;
   profit: number;
   roi: number;
+  ordersSP: number;
+  ordersLZD: number;
 }
 
 interface StatOption {

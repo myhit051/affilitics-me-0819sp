@@ -120,7 +120,9 @@ export default function DataImport({
         throw new Error('ไฟล์ CSV ต้องมีอย่างน้อย 2 บรรทัด (header + data)');
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      // Parse header with proper CSV parsing
+      const headerLine = lines[0];
+      const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/"/g, ''));
       if (headers.length === 0) {
         throw new Error('ไม่พบ header ในไฟล์ CSV');
       }
@@ -133,7 +135,7 @@ export default function DataImport({
         if (!line) continue;
         
         try {
-          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const values = parseCSVLine(line);
           const row: any = {};
           
           headers.forEach((header, index) => {
@@ -162,6 +164,44 @@ export default function DataImport({
       console.error('CSV parsing error:', error);
       throw error instanceof Error ? error : new Error('เกิดข้อผิดพลาดในการอ่านไฟล์ CSV');
     }
+  };
+
+  // Helper function to parse CSV line with proper handling of quoted fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    
+    while (i < line.length) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+          // Escaped quote
+          current += '"';
+          i += 2;
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+          i++;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current.trim());
+        current = '';
+        i++;
+      } else {
+        // Regular character
+        current += char;
+        i++;
+      }
+    }
+    
+    // Add the last field
+    result.push(current.trim());
+    
+    return result;
   };
 
   const parseExcel = (buffer: ArrayBuffer): any[] => {

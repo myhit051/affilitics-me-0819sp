@@ -17,6 +17,8 @@ interface DailyData {
   adSpend: number;
   profit: number;
   roi: number;
+  ordersSP: number;
+  ordersLZD: number;
 }
 
 interface StatOption {
@@ -45,15 +47,15 @@ export default function OrderChart({
 
   const chartData = useMemo(() => {
     if (dailyMetrics.length > 0) {
-      const totalCom = dailyMetrics.reduce((sum, day) => sum + day.totalCom, 0) || 1;
       return dailyMetrics.map(day => ({
         ...day,
-        orderSP: Math.round(uniqueShopeeOrderCount * (day.totalCom / totalCom)),
-        // orderLZD: ... (คำนวณตามเดิม)
+        orderSP: day.ordersSP || 0,
+        orderLZD: day.ordersLZD || 0,
+        totalOrders: (day.ordersSP || 0) + (day.ordersLZD || 0)
       }));
     }
     return [];
-  }, [dailyMetrics, uniqueShopeeOrderCount]);
+  }, [dailyMetrics]);
 
   const handleStatToggle = (statKey: string) => {
     setSelectedStats(prev => 

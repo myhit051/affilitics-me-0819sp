@@ -17,6 +17,8 @@ interface DailyData {
   adSpend: number;
   profit: number;
   roi: number;
+  ordersSP: number;
+  ordersLZD: number;
 }
 
 interface StatOption {
@@ -58,17 +60,16 @@ export default function StatsChart({
 
   const chartData = useMemo(() => {
     if (dailyMetrics.length > 0) {
-      const totalCom = dailyMetrics.reduce((sum, day) => sum + day.totalCom, 0) || 1;
       return dailyMetrics.map(day => ({
         ...day,
-        comSP: rawShopeeCommission * (day.totalCom / totalCom),
-        comLZD: day.totalCom - rawShopeeCommission * (day.totalCom / totalCom),
-        orderSP: Math.round(uniqueShopeeOrderCount * (day.totalCom / totalCom)),
-        orderLZD: 0 // หรือคำนวณตามเดิมถ้ามีข้อมูล
+        comSP: day.totalCom, // ใช้ totalCom เป็น comSP เนื่องจากเป็นข้อมูล Shopee
+        comLZD: 0, // ยังไม่มีข้อมูล Lazada
+        orderSP: day.ordersSP || 0,
+        orderLZD: day.ordersLZD || 0
       }));
     }
     return [];
-  }, [dailyMetrics, rawShopeeCommission, uniqueShopeeOrderCount]);
+  }, [dailyMetrics]);
 
   const handleStatToggle = (statKey: string) => {
     setSelectedStats(prev => 

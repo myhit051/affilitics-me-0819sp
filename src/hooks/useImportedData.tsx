@@ -51,8 +51,19 @@ export function useImportedData() {
   const [importedData, setImportedData] = useState<ImportedData | null>(() => {
     try {
       const stored = localStorage.getItem('affiliateData');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
+      const parsed = stored ? JSON.parse(stored) : null;
+      console.log('🔍 Loading importedData from localStorage:', {
+        stored: !!stored,
+        parsed: parsed ? {
+          shopeeOrders: parsed.shopeeOrders?.length || 0,
+          lazadaOrders: parsed.lazadaOrders?.length || 0,
+          facebookAds: parsed.facebookAds?.length || 0,
+          totalRows: parsed.totalRows || 0
+        } : null
+      });
+      return parsed;
+    } catch (error) {
+      console.error('❌ Error loading importedData from localStorage:', error);
       return null;
     }
   });
@@ -132,12 +143,27 @@ export function useImportedData() {
     });
     
     if (importedData && (!calculatedMetrics || !hasValidCalculatedMetrics)) {
-      console.log('🔄 Auto-processing imported data from localStorage...');
-      processImportedData(importedData);
-    } else if (importedData && calculatedMetrics && hasValidCalculatedMetrics) {
+      console.log('🔄 Processing data...');
+      const metrics = calculateMetrics(
+        importedData.shopeeOrders,
+        importedData.lazadaOrders,
+        importedData.facebookAds,
+        [], // Don't filter further - data is already filtered by date
+        "all", // Don't filter further
+        [], // Don't filter further
+        "all" // Don't filter further
+      );
+      setCalculatedMetrics(metrics);
+      
+      // Also process daily metrics
+      const daily = analyzeDailyPerformance(
+        importedData.shopeeOrders,
+        importedData.lazadaOrders,
+        importedData.facebookAds
+      );
+      setDailyMetrics(daily);
+    } else {
       console.log('🔄 Data already processed, calculatedMetrics exists and is valid');
-    } else if (!importedData) {
-      console.log('🔄 No importedData available');
     }
   }, [importedData, calculatedMetrics]);
 
@@ -554,18 +580,40 @@ export function useImportedData() {
     (importedData.facebookAds && importedData.facebookAds.length > 0)
   );
 
+  console.log('🔍 hasData calculation:', {
+    importedDataExists: importedData !== null,
+    shopeeOrders: importedData?.shopeeOrders?.length || 0,
+    lazadaOrders: importedData?.lazadaOrders?.length || 0,
+    facebookAds: importedData?.facebookAds?.length || 0,
+    hasData: hasData
+  });
+
   const rawShopeeCommission = useMemo(() => {
     return importedData && importedData.shopeeOrders ? sumShopeeCommissionRaw(importedData.shopeeOrders) : 0;
   }, [importedData]);
 
   const rawShopeeOrderCount = useMemo(() => {
-    return importedData && importedData.shopeeOrders ? importedData.shopeeOrders.length : 0;
+    if (!importedData || !importedData.shopeeOrders) return 0;
+    // นับจำนวนแถวทั้งหมดที่ไม่ยกเลิก
+    return importedData.shopeeOrders.filter(order => {
+      const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+      return orderStatus !== 'ยกเลิก' && orderStatus !== 'cancelled';
+    }).length;
   }, [importedData]);
 
   const uniqueShopeeOrderCount = useMemo(() => {
     if (!importedData || !importedData.shopeeOrders) return 0;
-    // เปลี่ยนจากการใช้ 'เลขที่คำสั่งซื้อ' เป็น 'รหัสการสั่งซื้อ'
-    const unique = new Set(importedData.shopeeOrders.map(order => order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ']));
+    // ใช้ 'รหัสการสั่งซื้อ' เป็น key และไม่นับออเดอร์ที่ยกเลิก
+    const unique = new Set();
+    importedData.shopeeOrders.forEach(order => {
+      const orderId = order['รหัสการสั่งซื้อ'];
+      const orderStatus = order['สถานะการสั่งซื้อ'] || order['สถานะ'];
+      
+      // ข้ามออเดอร์ที่ยกเลิก
+      if (orderStatus !== 'ยกเลิก' && orderStatus !== 'cancelled') {
+        unique.add(orderId);
+      }
+    });
     return unique.size;
   }, [importedData]);
 
