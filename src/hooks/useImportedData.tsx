@@ -128,22 +128,8 @@ export function useImportedData() {
       importedDataLength: importedData?.shopeeOrders?.length || 0
     });
     
-    // Check if calculatedMetrics has the expected structure
-    const hasValidCalculatedMetrics = calculatedMetrics && 
-      typeof calculatedMetrics.totalComSP === 'number' &&
-      typeof calculatedMetrics.totalOrdersSP === 'number' &&
-      typeof calculatedMetrics.totalAmountSP === 'number';
-    
-    console.log('🔍 calculatedMetrics validation:', {
-      hasCalculatedMetrics: !!calculatedMetrics,
-      hasValidStructure: hasValidCalculatedMetrics,
-      totalComSP: calculatedMetrics?.totalComSP,
-      totalOrdersSP: calculatedMetrics?.totalOrdersSP,
-      totalAmountSP: calculatedMetrics?.totalAmountSP
-    });
-    
-    if (importedData && (!calculatedMetrics || !hasValidCalculatedMetrics)) {
-      console.log('🔄 Processing data...');
+    if (importedData && !calculatedMetrics) {
+      console.log('🔄 Processing data from localStorage...');
       const metrics = calculateMetrics(
         importedData.shopeeOrders,
         importedData.lazadaOrders,
@@ -162,8 +148,27 @@ export function useImportedData() {
         importedData.facebookAds
       );
       setDailyMetrics(daily);
-    } else {
-      console.log('🔄 Data already processed, calculatedMetrics exists and is valid');
+      
+      // Process sub-id analysis
+      const subIdAnalysis = analyzeSubIdPerformance(
+        importedData.shopeeOrders,
+        importedData.lazadaOrders,
+        importedData.facebookAds,
+        metrics.totalAdsSpent
+      );
+      setSubIdAnalysis(subIdAnalysis);
+      
+      // Process platform analysis
+      const platforms = analyzePlatformPerformance(
+        importedData.shopeeOrders,
+        importedData.lazadaOrders,
+        metrics.totalAdsSpent
+      );
+      setPlatformAnalysis(platforms);
+      
+      console.log('✅ Auto-processing completed');
+    } else if (importedData && calculatedMetrics) {
+      console.log('🔄 Data already processed, calculatedMetrics exists');
     }
   }, [importedData, calculatedMetrics]);
 

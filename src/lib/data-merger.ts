@@ -35,6 +35,7 @@ export interface EnhancedLazadaOrder {
   'Order Number': string;
   'Order Time': string;
   'SKU': string;
+  'Sku Order ID': string; // เพิ่มคอลัมน์ Sku Order ID
   'Item Name': string;
   'Sales Channel': string;
   'Order Amount': string;

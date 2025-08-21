@@ -676,17 +676,6 @@ const Index = () => {
                   showPlatform={selectedPlatform}
                 />
 
-                {/* Tables - New Layout */}
-                <SubIdTable 
-                  shopeeOrders={importedData?.shopeeOrders || []}
-                  lazadaOrders={importedData?.lazadaOrders || []}
-                  facebookAds={importedData?.facebookAds || []}
-                  selectedSubIds={[]} // Don't double filter
-                  selectedChannels={[]} // Don't double filter
-                  selectedPlatform="all" // Don't double filter
-                  dateRange={undefined} // Don't double filter
-                />
-
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <TopProductsTable 
                     shopeeOrders={importedData?.shopeeOrders || []}
@@ -732,6 +721,17 @@ const Index = () => {
 
                 <BubblePlotChart 
                   subIdAnalysis={subIdAnalysis || []}
+                />
+
+                {/* 🚀 Campaign Performance - Moved to bottom */}
+                <SubIdTable 
+                  shopeeOrders={importedData?.shopeeOrders || []}
+                  lazadaOrders={importedData?.lazadaOrders || []}
+                  facebookAds={importedData?.facebookAds || []}
+                  selectedSubIds={[]} // Don't double filter
+                  selectedChannels={[]} // Don't double filter
+                  selectedPlatform="all" // Don't double filter
+                  dateRange={undefined} // Don't double filter
                 />
               </>
             )}

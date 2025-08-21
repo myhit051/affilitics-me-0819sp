@@ -8,7 +8,7 @@ import DateRangeSelector from "@/components/DateRangeSelector";
 import SubIdFilter from "@/components/SubIdFilter";
 import ChannelFilter from "@/components/ChannelFilter";
 import { useImportedData } from "@/hooks/useImportedData";
-import { ShoppingCart, TrendingUp, Target, DollarSign, RotateCcw, Upload } from "lucide-react";
+import { ShoppingCart, TrendingUp, Target, DollarSign, RotateCcw, Upload, Package } from "lucide-react";
 
 export default function LazadaAffiliate() {
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
@@ -54,11 +54,50 @@ export default function LazadaAffiliate() {
       };
     }
 
-    const filteredOrders = lazadaOrders.filter(order => {
-      // Filter out invalid orders
-      if (order['Validity'] === 'invalid') return false;
+    // ตรวจสอบข้อมูลพื้นฐาน
+    console.log('🔍 LAZADA DATA OVERVIEW:', {
+      totalOrders: lazadaOrders.length,
+      statusCounts: {
+        fulfilled: lazadaOrders.filter(order => order['Status'] === 'Fulfilled').length,
+        delivered: lazadaOrders.filter(order => order['Status'] === 'Delivered').length,
+        returned: lazadaOrders.filter(order => order['Status'] === 'Returned').length
+      },
+      validityCounts: {
+        valid: lazadaOrders.filter(order => order['Validity'] === 'valid').length,
+        invalid: lazadaOrders.filter(order => order['Validity'] === 'invalid').length
+      }
+    });
+    
+    // ใช้เงื่อนไขที่ยอมรับทั้ง Delivered และ Fulfilled
+    const fulfilledValidOrders = lazadaOrders.filter(order => {
+      const orderStatus = order['Status'];
+      const validity = order['Validity'];
       
-      // Apply filters
+      // ตรวจสอบ status ที่เป็น Delivered หรือ Fulfilled และ validity ที่เป็น valid
+      const isStatusFulfilled = orderStatus === 'Fulfilled' || orderStatus === 'Delivered';
+      const isValid = validity === 'valid';
+      
+      return isStatusFulfilled && isValid;
+    });
+
+    console.log('🔍 FILTERED RESULTS:', {
+      originalOrders: lazadaOrders.length,
+      fulfilledValidOrders: fulfilledValidOrders.length,
+      statusCounts: {
+        fulfilled: lazadaOrders.filter(order => order['Status'] === 'Fulfilled').length,
+        delivered: lazadaOrders.filter(order => order['Status'] === 'Delivered').length,
+        returned: lazadaOrders.filter(order => order['Status'] === 'Returned').length,
+        other: lazadaOrders.filter(order => order['Status'] !== 'Fulfilled' && order['Status'] !== 'Delivered' && order['Status'] !== 'Returned').length
+      },
+      validityCounts: {
+        valid: lazadaOrders.filter(order => order['Validity'] === 'valid').length,
+        invalid: lazadaOrders.filter(order => order['Validity'] === 'invalid').length
+      }
+    });
+
+    // Apply additional filters
+    const filteredOrders = fulfilledValidOrders.filter(order => {
+      // Apply Sub ID filters
       if (selectedSubIds.length > 0) {
         const orderSubIds = [
           order['Aff Sub ID'],
@@ -72,76 +111,84 @@ export default function LazadaAffiliate() {
       
       // Apply date filter
       if (dateRange?.from || dateRange?.to) {
-        const orderDate = new Date(order['Conversion Time']);
+        const orderDate = new Date(order['Conversion Time'] || order['Order Time']);
         if (dateRange?.from && orderDate < dateRange.from) return false;
         if (dateRange?.to && orderDate > dateRange.to) return false;
       }
       return true;
     });
 
-    // Count unique orders by Check Out ID
-    const uniqueOrderIds = new Set();
+    // Count unique SKU orders using Sku Order ID - same logic as affiliateCalculations.ts
+    const uniqueSkuOrders = new Set();
     filteredOrders.forEach(order => {
-      const checkoutId = order['Check Out ID'];
-      if (checkoutId) {
-        uniqueOrderIds.add(checkoutId);
-      }
+      uniqueSkuOrders.add(order['Sku Order ID']);
     });
 
     console.log('🔍 LAZADA STATS DEBUG:', {
       originalOrders: lazadaOrders.length,
+      fulfilledValidOrders: fulfilledValidOrders.length,
       filteredOrders: filteredOrders.length,
-      uniqueOrders: uniqueOrderIds.size,
+      uniqueSkuOrders: uniqueSkuOrders.size,
       totalCommission: filteredOrders.reduce((sum, order) => sum + parseNumber(order['Payout']), 0),
       totalAmount: filteredOrders.reduce((sum, order) => sum + parseNumber(order['Order Amount']), 0),
       sampleOrder: filteredOrders.length > 0 ? filteredOrders[0] : null,
+      sampleOriginalOrder: lazadaOrders.length > 0 ? lazadaOrders[0] : null,
       validityCounts: {
         valid: lazadaOrders.filter(order => order['Validity'] === 'valid').length,
         invalid: lazadaOrders.filter(order => order['Validity'] === 'invalid').length,
         undefined: lazadaOrders.filter(order => !order['Validity']).length
-      }
+      },
+      orderStatusCounts: {
+        shipped: lazadaOrders.filter(order => order['Order Status'] === 'shipped').length,
+        delivered: lazadaOrders.filter(order => order['Order Status'] === 'delivered').length,
+        other: lazadaOrders.filter(order => order['Order Status'] !== 'shipped' && order['Order Status'] !== 'delivered').length
+      },
+      // ตรวจสอบ column names จริง
+      sampleOrderKeys: lazadaOrders.length > 0 ? Object.keys(lazadaOrders[0]) : [],
+      orderStatusValues: lazadaOrders.slice(0, 5).map(order => order['Order Status']),
+      validityValues: lazadaOrders.slice(0, 5).map(order => order['Validity'])
     });
 
     const totalCommission = filteredOrders.reduce((sum, order) => sum + parseNumber(order['Payout']), 0);
     const totalAmount = filteredOrders.reduce((sum, order) => sum + parseNumber(order['Order Amount']), 0);
-    const totalOrders = uniqueOrderIds.size;
+    const totalOrders = uniqueSkuOrders.size;
     const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
 
-    // Top products - count unique orders by Check Out ID
+    // Top products - count unique SKU orders using Sku Order ID
     const productStats = filteredOrders.reduce((acc, order) => {
       const product = order['Product Name'] || order['Product'] || 'Unknown Product';
-      const checkoutId = order['Check Out ID'];
+      const skuOrderId = order['Sku Order ID'];
       
       if (!acc[product]) {
         acc[product] = { 
           commission: 0, 
           orders: new Set(), 
           amount: 0,
-          orderIds: new Set()
+          skuOrderIds: new Set()
         };
       }
       
       acc[product].commission += parseNumber(order['Payout']);
       acc[product].amount += parseNumber(order['Order Amount']);
-      if (checkoutId) {
-        acc[product].orderIds.add(checkoutId);
+      if (skuOrderId) {
+        acc[product].skuOrderIds.add(skuOrderId);
       }
       
       return acc;
-    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }>);
+    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }>);
 
     // Convert Set to count for final result
     const topProducts = Object.entries(productStats)
       .map(([product, stats]) => ({ 
         product, 
-        commission: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).commission, 
-        orders: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).orderIds.size, 
-        amount: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).amount 
+        commission: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).commission, 
+        orders: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).skuOrderIds.size, 
+        amount: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).amount 
       }))
       .sort((a, b) => b.commission - a.commission)
       .slice(0, 10);
 
-    // Top Sub IDs - count unique orders by Check Out ID
+    // Top Sub IDs - count unique SKU orders using Sku Order ID
     const subIdStats = filteredOrders.reduce((acc, order) => {
       const subIds = [
         order['Aff Sub ID'],
@@ -150,27 +197,27 @@ export default function LazadaAffiliate() {
         order['Sub ID 3'],
         order['Sub ID 4']
       ].filter(Boolean);
-      const checkoutId = order['Check Out ID'];
+      const skuOrderId = order['Sku Order ID'];
       
       subIds.forEach(subId => {
         if (!acc[subId]) {
-          acc[subId] = { commission: 0, orders: new Set(), amount: 0, orderIds: new Set() };
+          acc[subId] = { commission: 0, orders: new Set(), amount: 0, skuOrderIds: new Set() };
         }
         acc[subId].commission += parseNumber(order['Payout']);
         acc[subId].amount += parseNumber(order['Order Amount']);
-        if (checkoutId) {
-          acc[subId].orderIds.add(checkoutId);
+        if (skuOrderId) {
+          acc[subId].skuOrderIds.add(skuOrderId);
         }
       });
       return acc;
-    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }>);
+    }, {} as Record<string, { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }>);
 
     const topSubIds = Object.entries(subIdStats)
       .map(([subId, stats]) => ({ 
         subId, 
-        commission: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).commission, 
-        orders: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).orderIds.size, 
-        amount: (stats as { commission: number; orders: Set<string>; amount: number; orderIds: Set<string> }).amount 
+        commission: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).commission, 
+        orders: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).skuOrderIds.size, 
+        amount: (stats as { commission: number; orders: Set<string>; amount: number; skuOrderIds: Set<string> }).amount 
       }))
       .sort((a, b) => b.commission - a.commission)
       .slice(0, 10);
@@ -180,6 +227,7 @@ export default function LazadaAffiliate() {
       totalOrders,
       totalAmount,
       avgOrderValue,
+      units: fulfilledValidOrders.length, // จำนวน Units = จำนวนแถวที่ผ่านการกรอง
       topProducts,
       topSubIds
     };
@@ -280,7 +328,7 @@ export default function LazadaAffiliate() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatsCard
           title="Total Commission"
           value={formatCurrency(stats.totalCommission)}
@@ -306,12 +354,20 @@ export default function LazadaAffiliate() {
           animationDelay="200ms"
         />
         <StatsCard
+          title="Units"
+          value={stats.units.toLocaleString()}
+          change={0}
+          icon={<Package className="h-4 w-4 text-purple-500" />}
+          colorClass="from-purple-500/10 to-purple-600/5"
+          animationDelay="300ms"
+        />
+        <StatsCard
           title="Avg Order Value"
           value={formatCurrency(stats.avgOrderValue)}
           change={0}
           icon={<ShoppingCart className="h-4 w-4 text-purple-500" />}
           colorClass="from-purple-500/10 to-purple-600/5"
-          animationDelay="300ms"
+          animationDelay="400ms"
         />
       </div>
 

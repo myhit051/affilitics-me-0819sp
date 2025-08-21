@@ -30,6 +30,7 @@ interface LazadaOrder {
   'Order Number': string;
   'Order Time': string;
   'SKU': string;
+  'Sku Order ID': string; // เพิ่มคอลัมน์ Sku Order ID
   'Item Name': string;
   'Sales Channel': string;
   'Order Amount': string;
@@ -95,6 +96,7 @@ export interface CalculatedMetrics {
   profitChange: number;
   roiChange: number;
   ordersChange: number;
+  unitsLZD: number; // New field for Units calculation
   // Filtered data for other components
   filteredShopeeOrders?: ShopeeOrder[];
   filteredLazadaOrders?: LazadaOrder[];
@@ -315,56 +317,41 @@ export function calculateMetrics(
       : parseNumber(order['มูลค่าซื้อ(฿)']));
   }, 0);
 
-  // Calculate Lazada metrics - count unique orders by "Check Out ID"
-  const uniqueLazadaOrders = new Map();
-  filteredLazadaOrders.forEach(order => {
-    const checkoutId = order['Check Out ID'];
-    if (!uniqueLazadaOrders.has(checkoutId)) {
-      // Create a copy of the order to avoid modifying original data
-      uniqueLazadaOrders.set(checkoutId, {
-        ...order,
-        'Payout': parseNumber(order['Payout']),
-        'Order Amount': parseNumber(order['Order Amount'])
-      });
-    } else {
-      // If duplicate, add payout and amount to existing order
-      const existing = uniqueLazadaOrders.get(checkoutId);
-      existing['Payout'] += parseNumber(order['Payout']);
-      existing['Order Amount'] += parseNumber(order['Order Amount']);
-    }
-  });
+  // Calculate Lazada metrics according to new specifications
+  // Filter orders by Status='Fulfilled' or 'Delivered' and Validity='valid' - using actual Lazada column names
+  const fulfilledValidOrders = filteredLazadaOrders.filter(order => 
+    (order['Status'] === 'Fulfilled' || order['Status'] === 'Delivered') &&
+    order['Validity'] === 'valid'
+  );
 
-  const totalComLZD = Array.from(uniqueLazadaOrders.values()).reduce((sum, order) => {
-    const commission = typeof order['Payout'] === 'number' 
-      ? order['Payout'] 
-      : parseNumber(order['Payout']);
-    return sum + commission;
-  }, 0);
-  
-  // Debug: Show raw vs calculated totals
-  const rawLazadaTotal = filteredLazadaOrders.reduce((sum, order) => {
+  // "Units" - Count rows that pass filtering (1 row = 1 unit)
+  const unitsLZD = fulfilledValidOrders.length;
+
+  // "Order LZD" (Total Orders) - Count distinct SKU-level orders using Sku Order ID field
+  const uniqueSkuOrders = new Set();
+  fulfilledValidOrders.forEach(order => {
+    uniqueSkuOrders.add(order['Sku Order ID']);
+  });
+  const totalOrdersLZD = uniqueSkuOrders.size;
+
+  // "Com LZD" (Total Commission) - Sum Payout for filtered orders
+  const totalComLZD = fulfilledValidOrders.reduce((sum, order) => {
     return sum + parseNumber(order['Payout']);
   }, 0);
   
-  console.log('🔍 LAZADA COMMISSION DEBUG:');
-  console.log('Raw total (all filtered orders):', rawLazadaTotal);
-  console.log('Calculated total (after dedup):', totalComLZD);
-  console.log('Difference:', rawLazadaTotal - totalComLZD);
+  // Debug: Show calculation details
+  console.log('🔍 LAZADA CALCULATION DEBUG:');
+  console.log('Filtered orders (Fulfilled + Valid):', fulfilledValidOrders.length);
+  console.log('Unique SKU orders:', totalOrdersLZD);
+  console.log('Units (total rows):', unitsLZD);
+  console.log('Total commission:', totalComLZD);
 
-  const totalOrdersLZD = uniqueLazadaOrders.size;
-  
-  const totalAmountLZD = Array.from(uniqueLazadaOrders.values()).reduce((sum, order) => {
-    return sum + (typeof order['Order Amount'] === 'number' 
-      ? order['Order Amount'] 
-      : parseNumber(order['Order Amount']));
+  const totalAmountLZD = fulfilledValidOrders.reduce((sum, order) => {
+    return sum + parseNumber(order['Order Amount']);
   }, 0);
 
-  // Separate valid and invalid orders for Lazada
-  const validOrdersLZD = Array.from(uniqueLazadaOrders.values()).filter(order => 
-    order['Order Status'] === 'shipped' || 
-    order['Order Status'] === 'delivered' ||
-    (typeof order['Payout'] === 'number' ? order['Payout'] : parseNumber(order['Payout'])) > 0
-  ).length;
+  // Separate valid and invalid orders for Lazada (keeping existing logic for compatibility)
+  const validOrdersLZD = fulfilledValidOrders.length;
   
   const invalidOrdersLZD = totalOrdersLZD - validOrdersLZD;
 
@@ -439,7 +426,8 @@ export function calculateMetrics(
     revenueChange: 0,
     profitChange: 0,
     roiChange: 0,
-    ordersChange: 0
+    ordersChange: 0,
+    unitsLZD // New field for Units calculation
   };
 
   console.log('Calculated metrics:', metrics);
@@ -661,16 +649,19 @@ export function analyzeDailyPerformance(
 
   });
 
-  // Process unique Lazada orders
-  const uniqueLazadaOrders = new Map();
-  lazadaOrders.forEach(order => {
-    const checkoutId = order['Check Out ID'];
-    if (!uniqueLazadaOrders.has(checkoutId)) {
-      uniqueLazadaOrders.set(checkoutId, order);
-    }
+  // Process Lazada orders with new filtering logic
+  const fulfilledValidLazadaOrders = lazadaOrders.filter(order => 
+    (order['Status'] === 'Fulfilled' || order['Status'] === 'Delivered') &&
+    order['Validity'] === 'valid'
+  );
+
+  // Count unique SKU orders for Lazada
+  const uniqueSkuOrders = new Set();
+  fulfilledValidLazadaOrders.forEach(order => {
+    uniqueSkuOrders.add(order['Sku Order ID']);
   });
 
-  Array.from(uniqueLazadaOrders.values()).forEach(order => {
+  fulfilledValidLazadaOrders.forEach(order => {
     const dateStr = order['Conversion Time'] || order['Order Time'];
     if (dateStr) {
       try {
@@ -785,16 +776,13 @@ export function analyzeSubIdPerformance(
     });
   });
 
-  // Process unique Lazada orders
-  const uniqueLazadaOrders = new Map();
-  lazadaOrders.forEach(order => {
-    const checkoutId = order['Check Out ID'];
-    if (!uniqueLazadaOrders.has(checkoutId)) {
-      uniqueLazadaOrders.set(checkoutId, order);
-    }
-  });
+  // Process Lazada orders with new filtering logic
+  const fulfilledValidLazadaOrders = lazadaOrders.filter(order => 
+    order['Status'] === 'Fulfilled' &&
+    order['Validity'] === 'valid'
+  );
 
-  Array.from(uniqueLazadaOrders.values()).forEach((order) => {
+  fulfilledValidLazadaOrders.forEach((order) => {
     const subIds = [
       order['Aff Sub ID'],
       order['Sub ID 1'],
@@ -868,12 +856,22 @@ export function analyzePlatformPerformance(
   const shopeeOrdersCount = uniqueShopeeOrders.size;
   const shopeeROI = totalAdsSpent > 0 ? (shopeeCommission / totalAdsSpent) * 100 : 0;
 
-  // Count unique Lazada orders
-  const uniqueLazadaOrders = new Set(lazadaOrders.map(order => order['Check Out ID']));
-  const lazadaCommission = lazadaOrders.reduce((sum, order) => {
+  // Count Lazada orders with new filtering logic
+  const fulfilledValidLazadaOrders = lazadaOrders.filter(order => 
+    (order['Status'] === 'Fulfilled' || order['Status'] === 'Delivered') &&
+    order['Validity'] === 'valid'
+  );
+  
+  // Count unique SKU orders for Lazada
+  const uniqueSkuOrders = new Set();
+  fulfilledValidLazadaOrders.forEach(order => {
+    uniqueSkuOrders.add(order['Sku Order ID']);
+  });
+  
+  const lazadaCommission = fulfilledValidLazadaOrders.reduce((sum, order) => {
     return sum + parseNumber(order['Payout']);
   }, 0);
-  const lazadaOrdersCount = uniqueLazadaOrders.size;
+  const lazadaOrdersCount = uniqueSkuOrders.size;
   const lazadaROI = totalAdsSpent > 0 ? (lazadaCommission / totalAdsSpent) * 100 : 0;
 
   const facebookAdSpend = totalAdsSpent;

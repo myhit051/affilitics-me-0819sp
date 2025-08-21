@@ -173,7 +173,45 @@ export default function SubIdTable({
 
     const subIdMap: { [key: string]: SubIdData } = {};
 
-    // Initialize with filtered Facebook Ads data
+    // Initialize SubID entries for all SubIDs found in orders
+    const allSubIds = new Set<string>();
+    
+    // Collect all SubIDs from Shopee orders
+    filteredShopeeOrders.forEach(order => {
+      const subIds = [
+        order['Sub_id1'], order['Sub_id2'], order['Sub_id3'],
+        order['Sub_id4'], order['Sub_id5']
+      ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
+      subIds.forEach(subId => allSubIds.add(subId));
+    });
+    
+    // Collect all SubIDs from Lazada orders
+    filteredLazadaOrders.forEach(order => {
+      const subIds = [
+        order['Aff Sub ID'], order['Sub ID 1'], order['Sub ID 2'],
+        order['Sub ID 3'], order['Sub ID 4']
+      ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
+      subIds.forEach(subId => allSubIds.add(subId));
+    });
+
+    // Initialize all SubIDs in the map
+    allSubIds.forEach(subId => {
+      subIdMap[subId] = {
+        subid: subId,
+        adSpend: 0,
+        totalCom: 0,
+        totalProfit: 0,
+        overallROI: 0,
+        comSP: 0,
+        comLZD: 0,
+        orderSP: 0,
+        orderLZD: 0,
+        cpoSP: 0,
+        amountLZD: 0,
+      };
+    });
+
+    // Assign Facebook Ads to SubIDs (each ad can be assigned to multiple SubIDs)
     filteredFacebookAds.forEach(ad => {
       const campaignName = ad['Campaign name'] || '';
       const adSetName = ad['Ad set name'] || '';
@@ -182,8 +220,8 @@ export default function SubIdTable({
       
       const allNames = `${campaignName} ${adSetName} ${adName}`.toLowerCase();
       
-      // Find matching subid from orders
-      let matchingSubId = 'NoSubID';
+      // Find all matching SubIDs for this ad
+      const matchingSubIds: string[] = [];
       
       // Check filtered Shopee orders
       filteredShopeeOrders.forEach(order => {
@@ -193,49 +231,38 @@ export default function SubIdTable({
         ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
         
         subIds.forEach(subId => {
-          if (allNames.includes(subId.toLowerCase())) {
-            matchingSubId = subId;
+          if (allNames.includes(subId.toLowerCase()) && !matchingSubIds.includes(subId)) {
+            matchingSubIds.push(subId);
           }
         });
       });
       
-      // Check filtered Lazada orders if not found in Shopee
-      if (matchingSubId === 'NoSubID') {
-        filteredLazadaOrders.forEach(order => {
-          const subIds = [
-            order['Aff Sub ID'], order['Sub ID 1'], order['Sub ID 2'],
-            order['Sub ID 3'], order['Sub ID 4']
-          ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
-          
-          subIds.forEach(subId => {
-            if (allNames.includes(subId.toLowerCase())) {
-              matchingSubId = subId;
-            }
-          });
+      // Check filtered Lazada orders
+      filteredLazadaOrders.forEach(order => {
+        const subIds = [
+          order['Aff Sub ID'], order['Sub ID 1'], order['Sub ID 2'],
+          order['Sub ID 3'], order['Sub ID 4']
+        ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
+        
+        subIds.forEach(subId => {
+          if (allNames.includes(subId.toLowerCase()) && !matchingSubIds.includes(subId)) {
+            matchingSubIds.push(subId);
+          }
         });
-      }
+      });
 
-      if (!subIdMap[matchingSubId]) {
-        subIdMap[matchingSubId] = {
-          subid: matchingSubId,
-          adSpend: 0,
-          totalCom: 0,
-          totalProfit: 0,
-          overallROI: 0,
-          comSP: 0,
-          comLZD: 0,
-          orderSP: 0,
-          orderLZD: 0,
-          cpoSP: 0,
-          amountLZD: 0,
-        };
-      }
-      
-      subIdMap[matchingSubId].adSpend += adSpend;
+      // Assign the full ad spend to each matching SubID
+      matchingSubIds.forEach(subId => {
+        if (subIdMap[subId]) {
+          subIdMap[subId].adSpend += adSpend;
+        }
+      });
     });
 
-    // Shopee: นับ orderSP แบบ unique order id ต่อ SubId
+    // Process Shopee orders with unique order ID counting
     const subIdOrderSet: { [subId: string]: Set<string> } = {};
+    const subIdCommissionMap: { [subId: string]: number } = {};
+    
     filteredShopeeOrders.forEach(order => {
       const subIds = [
         order['Sub_id1'], order['Sub_id2'], order['Sub_id3'],
@@ -243,35 +270,29 @@ export default function SubIdTable({
       ].filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
       const orderId = order['เลขที่คำสั่งซื้อ'];
       const commission = parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
+      
       subIds.forEach(subId => {
-        if (!subIdMap[subId]) {
-          subIdMap[subId] = {
-            subid: subId,
-            adSpend: 0,
-            totalCom: 0,
-            totalProfit: 0,
-            overallROI: 0,
-            comSP: 0,
-            comLZD: 0,
-            orderSP: 0,
-            orderLZD: 0,
-            cpoSP: 0,
-            amountLZD: 0,
-          };
-        }
-        subIdMap[subId].comSP += commission;
-        subIdMap[subId].totalCom += commission;
-        // นับ order เฉพาะ order id ที่ไม่ซ้ำ
+        // Initialize if not exists
         if (!subIdOrderSet[subId]) subIdOrderSet[subId] = new Set();
+        if (!subIdCommissionMap[subId]) subIdCommissionMap[subId] = 0;
+        
+        // Add unique order ID
         subIdOrderSet[subId].add(orderId);
+        // Add commission
+        subIdCommissionMap[subId] += commission;
       });
     });
-    // สรุปจำนวน orderSP ต่อ SubId
+    
+    // Update SubID map with Shopee data
     Object.keys(subIdOrderSet).forEach(subId => {
-      subIdMap[subId].orderSP = subIdOrderSet[subId].size;
+      if (subIdMap[subId]) {
+        subIdMap[subId].orderSP = subIdOrderSet[subId].size;
+        subIdMap[subId].comSP = subIdCommissionMap[subId];
+        subIdMap[subId].totalCom += subIdCommissionMap[subId];
+      }
     });
 
-    // Add filtered Lazada commission data
+    // Process Lazada orders
     filteredLazadaOrders.forEach(order => {
       const subIds = [
         order['Aff Sub ID'], order['Sub ID 1'], order['Sub ID 2'],
@@ -282,26 +303,12 @@ export default function SubIdTable({
       const amount = parseNumber(order['Order Amount']);
       
       subIds.forEach(subId => {
-        if (!subIdMap[subId]) {
-          subIdMap[subId] = {
-            subid: subId,
-            adSpend: 0,
-            totalCom: 0,
-            totalProfit: 0,
-            overallROI: 0,
-            comSP: 0,
-            comLZD: 0,
-            orderSP: 0,
-            orderLZD: 0,
-            cpoSP: 0,
-            amountLZD: 0,
-          };
+        if (subIdMap[subId]) {
+          subIdMap[subId].comLZD += commission;
+          subIdMap[subId].totalCom += commission;
+          subIdMap[subId].orderLZD += 1;
+          subIdMap[subId].amountLZD += amount;
         }
-        
-        subIdMap[subId].comLZD += commission;
-        subIdMap[subId].totalCom += commission;
-        subIdMap[subId].orderLZD += 1;
-        subIdMap[subId].amountLZD += amount;
       });
     });
 

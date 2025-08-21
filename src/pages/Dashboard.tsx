@@ -63,13 +63,8 @@ export default function Dashboard() {
     uniqueShopeeOrderCount
   } = useImportedData();
 
-  // Auto-process data when importedData is loaded from localStorage
-  useEffect(() => {
-    if (importedData && !calculatedMetrics) {
-      console.log('🔄 Auto-processing imported data from localStorage in Dashboard...');
-      processImportedData(importedData, selectedSubIds, selectedValidity, selectedChannels, dateRange, selectedPlatform);
-    }
-  }, [importedData, calculatedMetrics, selectedSubIds, selectedValidity, selectedChannels, dateRange, selectedPlatform]);
+  // Note: Auto-processing is now handled by the useImportedData hook itself
+  // No need to manually trigger processImportedData here
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -93,6 +88,20 @@ export default function Dashboard() {
     }
     return defaultValue;
   };
+
+  // Debug logging for Dashboard
+  console.log('🔍 DASHBOARD DEBUG:', {
+    hasData,
+    hasCalculatedMetrics: !!calculatedMetrics,
+    importedDataKeys: importedData ? Object.keys(importedData) : null,
+    shopeeOrdersCount: importedData?.shopeeOrders?.length || 0,
+    lazadaOrdersCount: importedData?.lazadaOrders?.length || 0,
+    facebookAdsCount: importedData?.facebookAds?.length || 0,
+    calculatedMetricsKeys: calculatedMetrics ? Object.keys(calculatedMetrics) : null,
+    totalComLZD: calculatedMetrics?.totalComLZD,
+    totalOrdersLZD: calculatedMetrics?.totalOrdersLZD,
+    unitsLZD: calculatedMetrics?.unitsLZD
+  });
 
   const formatCurrency = (value: number) => {
     const rounded = Math.round(value * 100) / 100;
@@ -366,17 +375,7 @@ export default function Dashboard() {
         dailyMetrics={dailyMetrics || []}
       />
 
-      {/* Tables */}
-      <CampaignTable 
-        campaigns={generateTraditionalCampaigns(
-          importedData?.shopeeOrders || [],
-          importedData?.lazadaOrders || [],
-          importedData?.facebookAds || []
-        )}
-        facebookAds={importedData?.facebookAds || []}
-        showPlatform={selectedPlatform}
-      />
-
+      {/* 🚀 Campaign Performance */}
       <SubIdTable 
         shopeeOrders={importedData?.shopeeOrders || []}
         lazadaOrders={importedData?.lazadaOrders || []}
@@ -424,6 +423,17 @@ export default function Dashboard() {
         selectedChannels={[]}
         selectedPlatform="all"
         dateRange={undefined}
+      />
+
+      {/* Campaign Performance Table - Moved to bottom with pagination */}
+      <CampaignTable 
+        campaigns={generateTraditionalCampaigns(
+          importedData?.shopeeOrders || [],
+          importedData?.lazadaOrders || [],
+          importedData?.facebookAds || []
+        )}
+        facebookAds={importedData?.facebookAds || []}
+        showPlatform={selectedPlatform}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,14 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Play, Pause, MoreHorizontal, Calendar } from "lucide-react";
 
 interface Campaign {
@@ -50,6 +59,9 @@ interface CampaignTableProps {
 }
 
 export default function CampaignTable({ campaigns = [], facebookAds = [], showPlatform = 'all' }: CampaignTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const formatCurrency = (value: number) => {
     // Round to 2 decimal places and format with commas
     const rounded = Math.round(value * 100) / 100;
@@ -137,6 +149,11 @@ export default function CampaignTable({ campaigns = [], facebookAds = [], showPl
     allCampaigns = [...campaigns.filter(c => c.platform === showPlatform), ...facebookCampaigns.filter(c => c.platform === showPlatform)];
   }
 
+  // Pagination logic
+  const totalPages = Math.ceil(allCampaigns.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedCampaigns = allCampaigns.slice(startIndex, startIndex + itemsPerPage);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -212,7 +229,7 @@ export default function CampaignTable({ campaigns = [], facebookAds = [], showPl
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allCampaigns.map((campaign) => (
+              {paginatedCampaigns.map((campaign) => (
                 <TableRow key={campaign.id} className="hover:bg-secondary/20">
                   <TableCell>
                     <div className="flex flex-col">
@@ -277,6 +294,60 @@ export default function CampaignTable({ campaigns = [], facebookAds = [], showPl
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-6">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  let pageNumber: number;
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i;
+                  } else {
+                    pageNumber = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(pageNumber)}
+                        isActive={currentPage === pageNumber}
+                        className="cursor-pointer"
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+
+        {/* Show pagination info */}
+        <div className="text-sm text-muted-foreground mt-4 text-center">
+          แสดง {Math.min(itemsPerPage, paginatedCampaigns.length)} จาก {allCampaigns.length} รายการ
+          {totalPages > 1 && ` (หน้า ${currentPage} จาก ${totalPages})`}
         </div>
       </CardContent>
     </Card>
