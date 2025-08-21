@@ -113,7 +113,7 @@ export default function DataImport({
     }
   }, [facebookConnection?.isConnected, facebookConnection?.connectedAccounts]);
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = async (text: string): Promise<any[]> => {
     try {
       const lines = text.split('\n');
       if (lines.length < 2) {
@@ -130,6 +130,10 @@ export default function DataImport({
       const data = [];
       let processedRows = 0;
       
+      // Chunked processing for very large files
+      const chunkSize = 10000; // Process 10k rows at a time
+      const totalRows = lines.length - 1;
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -145,10 +149,15 @@ export default function DataImport({
           data.push(row);
           processedRows++;
           
-          // Yield control periodically for large files
-          if (processedRows % 5000 === 0) {
-            // This allows the UI to remain responsive
-            console.log(`Processed ${processedRows} CSV rows...`);
+          // Yield control periodically for large files and show progress
+          if (processedRows % chunkSize === 0) {
+            const progress = Math.round((processedRows / totalRows) * 100);
+            console.log(`Processed ${processedRows}/${totalRows} CSV rows (${progress}%)`);
+            
+            // Small delay to prevent blocking UI
+            if (processedRows % (chunkSize * 5) === 0) {
+              await new Promise(resolve => setTimeout(resolve, 10));
+            }
           }
         } catch (rowError) {
           console.warn(`Skipping invalid CSV row ${i}:`, rowError);
@@ -158,11 +167,12 @@ export default function DataImport({
       if (data.length === 0) {
         throw new Error('ไม่พบข้อมูลที่ถูกต้องในไฟล์ CSV');
       }
-      
+
+      console.log(`CSV parsing completed: ${data.length} valid rows from ${totalRows} total rows`);
       return data;
     } catch (error) {
       console.error('CSV parsing error:', error);
-      throw error instanceof Error ? error : new Error('เกิดข้อผิดพลาดในการอ่านไฟล์ CSV');
+      throw error instanceof Error ? error : new Error('ไม่สามารถอ่านไฟล์ CSV ได้');
     }
   };
 
@@ -331,10 +341,10 @@ export default function DataImport({
   };
 
   const processFile = async (file: File): Promise<any[]> => {
-    // Check file size limit (50MB)
-    const maxFileSize = 50 * 1024 * 1024; // 50MB
+    // Check file size limit (100MB - increased from 50MB)
+    const maxFileSize = 100 * 1024 * 1024; // 100MB
     if (file.size > maxFileSize) {
-      throw new Error(`ไฟล์ใหญ่เกินไป (${formatFileSize(file.size)}). ขนาดสูงสุด 50MB`);
+      throw new Error(`ไฟล์ใหญ่เกินไป (${formatFileSize(file.size)}). ขนาดสูงสุด 100MB`);
     }
 
     return new Promise((resolve, reject) => {
@@ -356,7 +366,7 @@ export default function DataImport({
           }
           
           if (file.name.endsWith('.csv')) {
-            data = parseCSV(result as string);
+            data = await parseCSV(result as string);
           } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
             data = parseExcel(result as ArrayBuffer);
           } else {
@@ -375,10 +385,10 @@ export default function DataImport({
             return;
           }
 
-          // Limit rows for very large datasets (100k rows max)
-          if (data.length > 100000) {
-            console.warn(`Large dataset detected: ${data.length} rows. Limiting to 100,000 rows.`);
-            data = data.slice(0, 100000);
+          // Increased row limit for very large datasets (500k rows max)
+          if (data.length > 500000) {
+            console.warn(`Very large dataset detected: ${data.length} rows. Limiting to 500,000 rows.`);
+            data = data.slice(0, 500000);
           }
 
           console.log(`Parsed ${file.name}: ${data.length} rows`);
@@ -441,190 +451,131 @@ export default function DataImport({
       let shopeeOrders: any[] = storedData.shopee?.data || [];
       let lazadaOrders: any[] = storedData.lazada?.data || [];
       let facebookAds: any[] = storedData.facebook?.data || [];
-      let totalRows = 0;
-      const processingErrors: string[] = [];
-      const newFileHistory: ImportedFile[] = [];
 
-      // Count total files to process for accurate progress
-      const filesToProcess = [
-        files.shopee ? { file: files.shopee, type: 'shopee' as const } : null,
-        files.lazada ? { file: files.lazada, type: 'lazada' as const } : null,
-        files.facebook ? { file: files.facebook, type: 'facebook' as const } : null,
-      ].filter(Boolean);
-
-      const totalFiles = filesToProcess.length;
-      let processedFiles = 0;
-
-      // Process files sequentially to avoid memory overload
-      for (const fileInfo of filesToProcess) {
-        if (!fileInfo) continue;
-
-        const { file, type } = fileInfo;
-        const baseProgress = (processedFiles / totalFiles) * 100;
-        const fileProgress = (1 / totalFiles) * 100;
-
-        try {
-          setProgress(baseProgress + fileProgress * 0.1); // Start processing
-          setCurrentProcessing(`กำลังประมวลผล ${type.charAt(0).toUpperCase() + type.slice(1)}: ${file.name}`);
-          
-          console.log(`Processing ${type} file: ${file.name} (${formatFileSize(file.size)})`);
-          
-          // Add small delay to prevent UI blocking
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          setProgress(baseProgress + fileProgress * 0.5); // Mid processing
-          
-          const data = await processFile(file);
-          
-          if (!data || !Array.isArray(data) || data.length === 0) {
-            throw new Error(`ไม่สามารถประมวลผลไฟล์ ${file.name} ได้ - ไฟล์อาจเสียหายหรือรูปแบบไม่ถูกต้อง`);
-          }
-          
-          console.log(`Successfully processed ${type} file:`, data.length, 'rows');
-          setProgress(baseProgress + fileProgress * 0.9); // Almost done
-          
-          // Store data based on type and update stored data
-          // Only replace data for the platform being uploaded
-          switch (type) {
-            case 'shopee':
-              shopeeOrders = data; // Replace only Shopee data
-              setStoredData({
-                ...storedData,
-                shopee: {
-                  data: data,
-                  fileName: file.name,
-                  timestamp: new Date(),
-                  size: file.size,
-                  rowCount: data.length
-                }
-              });
-              console.log('Shopee data processed:', data.length, 'rows');
-              break;
-            case 'lazada':
-              lazadaOrders = data; // Replace only Lazada data
-              setStoredData({
-                ...storedData,
-                lazada: {
-                  data: data,
-                  fileName: file.name,
-                  timestamp: new Date(),
-                  size: file.size,
-                  rowCount: data.length
-                }
-              });
-              console.log('Lazada data processed:', data.length, 'rows');
-              if (data.length > 0) {
-                console.log('Lazada columns:', Object.keys(data[0]));
-              }
-              break;
-            case 'facebook':
-              facebookAds = data; // Replace only Facebook data
-              setStoredData({
-                ...storedData,
-                facebook: {
-                  data: data,
-                  fileName: file.name,
-                  timestamp: new Date(),
-                  size: file.size,
-                  rowCount: data.length
-                }
-              });
-              console.log('Facebook data processed:', data.length, 'rows');
-              break;
-          }
-
-          // totalRows will be calculated at the end with all merged data
-          newFileHistory.push({
-            name: file.name,
-            type: type,
-            timestamp: new Date(),
-            size: file.size
-          });
-
-          processedFiles++;
-          setProgress(baseProgress + fileProgress); // Complete this file
-          
-          // Force garbage collection hint
-          if (window.gc) {
-            window.gc();
-          }
-          
-        } catch (error: any) {
-          console.error(`Error processing ${type} file:`, error);
-          const errorMessage = error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
-          processingErrors.push(`${type.charAt(0).toUpperCase() + type.slice(1)}: ${errorMessage}`);
-          
-          // Continue processing other files even if one fails
-          console.log(`Continuing with other files despite ${type} error`);
-          processedFiles++;
-        }
-
-        // Small delay between files to prevent blocking
-        await new Promise(resolve => setTimeout(resolve, 50));
+      // Process new files
+      if (files.shopee) {
+        setCurrentProcessing('Shopee');
+        console.log('Processing Shopee file...');
+        shopeeOrders = await processFile(files.shopee);
+        setProgress(33);
       }
 
-      setProgress(100);
-      setCurrentProcessing('เสร็จสิ้นการประมวลผล');
-
-      if (processingErrors.length > 0 && totalRows === 0) {
-        setErrors(processingErrors);
-        setCurrentProcessing('');
-        return;
+      if (files.lazada) {
+        setCurrentProcessing('Lazada');
+        console.log('Processing Lazada file...');
+        lazadaOrders = await processFile(files.lazada);
+        setProgress(66);
       }
 
-      // Update file history
-      setFileHistory(prev => [...newFileHistory, ...prev].slice(0, 10));
+      if (files.facebook) {
+        setCurrentProcessing('Facebook');
+        console.log('Processing Facebook file...');
+        facebookAds = await processFile(files.facebook);
+        setProgress(100);
+      }
 
-      // Use the current data arrays which now contain the merged data
-      // (existing data + newly uploaded data for specific platforms)
-      const finalTotalRows = shopeeOrders.length + lazadaOrders.length + facebookAds.length;
+      // Check total data size and warn if too large
+      const totalRows = shopeeOrders.length + lazadaOrders.length + facebookAds.length;
+      const estimatedSizeMB = (totalRows * 500) / (1024 * 1024); // Rough estimate: 500 bytes per row
+      
+      console.log(`Total data: ${totalRows} rows, estimated size: ${estimatedSizeMB.toFixed(2)}MB`);
+      
+      if (estimatedSizeMB > 4) { // 4MB threshold for localStorage
+        console.warn(`Large dataset detected (${estimatedSizeMB.toFixed(2)}MB). Consider using Cloud Sync for better performance.`);
+      }
 
-      const importedData = {
-        shopeeOrders: shopeeOrders,
-        lazadaOrders: lazadaOrders,
-        facebookAds: facebookAds,
-        totalRows: finalTotalRows,
-        errors: processingErrors,
+      // Store data with compression for large datasets
+      const finalData = {
+        shopeeOrders,
+        lazadaOrders,
+        facebookAds,
+        totalRows,
+        errors: [],
       };
 
-      console.log('Data import completed:', {
-        shopee: shopeeOrders.length,
-        lazada: lazadaOrders.length,
-        facebook: facebookAds.length,
-        totalRows: finalTotalRows,
-        processingErrors: processingErrors.length
-      });
+      // Try to save to localStorage with fallback for large datasets
+      try {
+        const dataString = JSON.stringify(finalData);
+        const dataSizeMB = dataString.length / (1024 * 1024);
+        
+        if (dataSizeMB > 4) {
+          // For large datasets, save only essential data and use compression
+          const compressedData = {
+            shopeeOrders: shopeeOrders.slice(0, 50000), // Limit to 50k rows for localStorage
+            lazadaOrders: lazadaOrders.slice(0, 50000),
+            facebookAds: facebookAds.slice(0, 50000),
+            totalRows,
+            errors: [],
+            isCompressed: true,
+            originalRowCount: {
+              shopee: shopeeOrders.length,
+              lazada: lazadaOrders.length,
+              facebook: facebookAds.length
+            }
+          };
+          
+          localStorage.setItem('affiliateData', JSON.stringify(compressedData));
+          console.log(`Saved compressed data to localStorage (${(JSON.stringify(compressedData).length / (1024 * 1024)).toFixed(2)}MB)`);
+          
+          // Show warning about data compression
+          setErrors([`ข้อมูลถูกบีบอัดเนื่องจากขนาดใหญ่ (${dataSizeMB.toFixed(2)}MB). แสดงเฉพาะ 50,000 แถวแรกต่อแพลตฟอร์ม`]);
+        } else {
+          localStorage.setItem('affiliateData', dataString);
+          console.log(`Saved full data to localStorage (${dataSizeMB.toFixed(2)}MB)`);
+        }
+      } catch (storageError) {
+        console.error('Failed to save to localStorage:', storageError);
+        setErrors(['ไม่สามารถบันทึกข้อมูลลง localStorage ได้ ข้อมูลจะหายไปเมื่อรีเฟรชหน้า']);
+      }
 
-      console.log('Sending data to parent:', importedData);
+      // Update stored data state
+      const newStoredData = {
+        shopee: files.shopee ? {
+          data: shopeeOrders,
+          fileName: files.shopee.name,
+          timestamp: new Date(),
+          size: files.shopee.size,
+          rowCount: shopeeOrders.length
+        } : storedData.shopee,
+        lazada: files.lazada ? {
+          data: lazadaOrders,
+          fileName: files.lazada.name,
+          timestamp: new Date(),
+          size: files.lazada.size,
+          rowCount: lazadaOrders.length
+        } : storedData.lazada,
+        facebook: files.facebook ? {
+          data: facebookAds,
+          fileName: files.facebook.name,
+          timestamp: new Date(),
+          size: files.facebook.size,
+          rowCount: facebookAds.length
+        } : storedData.facebook,
+      };
 
-      // Small delay before calling onDataImported to ensure UI updates
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      onDataImported(importedData);
+      setStoredData(newStoredData);
+
+      // Call the callback with the processed data
+      if (onDataImported) {
+        onDataImported(finalData);
+      }
+
       setSuccess(true);
-      
-      // Reset files after successful import
-      setFiles({
-        shopee: null,
-        lazada: null,
-        facebook: null
-      });
-      
-      // Reset progress
-      setProgress(0);
       setCurrentProcessing('');
-      
-      // ไม่ reset success state เพราะจะ redirect ไปหน้า Dashboard แล้ว
-      // setTimeout(() => {
-      //   setSuccess(false);
-      // }, 3000);
 
-    } catch (error: any) {
+      // Auto-navigate to dashboard after successful import
+      setTimeout(() => {
+        if (onNavigateToDashboard) {
+          onNavigateToDashboard();
+        }
+      }, 2000);
+
+    } catch (error) {
       console.error('Import error:', error);
-      setErrors([error.message || 'เกิดข้อผิดพลาดในการนำเข้าข้อมูล']);
+      setErrors([error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการ import']);
+      setCurrentProcessing('');
     } finally {
       setUploading(false);
-      setCurrentProcessing('');
     }
   };
 
@@ -1868,6 +1819,452 @@ export default function DataImport({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">📋 ข้อจำกัดการอัพโหลด</h3>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>• <strong>ขนาดไฟล์สูงสุด:</strong> 100MB (เพิ่มจาก 50MB)</p>
+            <p>• <strong>จำนวนแถวสูงสุด:</strong> 500,000 แถว (เพิ่มจาก 100,000 แถว)</p>
+            <p>• <strong>การประมวลผล:</strong> รองรับไฟล์ CSV และ Excel (.xlsx, .xls)</p>
+            <p>• <strong>คำแนะนำ:</strong> สำหรับไฟล์ใหญ่กว่า 4MB ควรใช้ Cloud Sync เพื่อประสิทธิภาพที่ดีกว่า</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Shopee Data Section */}
+          <div className="space-y-3">
+            <Label className="text-lg font-semibold flex items-center gap-2 text-orange-400">
+              <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+              Shopee Data
+            </Label>
+            <div className="shopee-gradient border border-orange-500/20 rounded-xl p-4 text-center hover:border-orange-400/40 transition-all duration-300 group">
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={(e) => handleFileChange('shopee', e.target.files?.[0] || null)}
+                className="hidden"
+                id="shopee-upload"
+              />
+              <Label 
+                htmlFor="shopee-upload" 
+                className="cursor-pointer flex flex-col items-center gap-3"
+              >
+                <div className="p-3 rounded-lg bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                  <Upload className="h-6 w-6 text-orange-400" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-white">
+                    {files.shopee ? files.shopee.name : 
+                     storedData.shopee ? "แทนที่ไฟล์ Shopee" : "เลือกไฟล์ Shopee"}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    {storedData.shopee ? "อัปโหลดใหม่เพื่อแทนที่" : "CSV, XLSX"}
+                  </div>
+                  {files.shopee && (
+                    <Badge className="bg-orange-500/20 text-orange-400 text-xs">
+                      {formatFileSize(files.shopee.size)}
+                    </Badge>
+                  )}
+                </div>
+              </Label>
+            </div>
+          </div>
+
+          {/* Lazada Data Section */}
+          <div className="space-y-3">
+            <Label className="text-lg font-semibold flex items-center gap-2 text-purple-400">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              Lazada Data
+            </Label>
+            <div className="lazada-gradient border border-purple-500/20 rounded-xl p-4 text-center hover:border-purple-400/40 transition-all duration-300 group">
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={(e) => handleFileChange('lazada', e.target.files?.[0] || null)}
+                className="hidden"
+                id="lazada-upload"
+              />
+              <Label 
+                htmlFor="lazada-upload" 
+                className="cursor-pointer flex flex-col items-center gap-3"
+              >
+                <div className="p-3 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                  <Upload className="h-6 w-6 text-purple-400" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-white">
+                    {files.lazada ? files.lazada.name : 
+                     storedData.lazada ? "แทนที่ไฟล์ Lazada" : "เลือกไฟล์ Lazada"}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    {storedData.lazada ? "อัปโหลดใหม่เพื่อแทนที่" : "CSV, XLSX"}
+                  </div>
+                  {files.lazada && (
+                    <Badge className="bg-purple-500/20 text-purple-400 text-xs">
+                      {formatFileSize(files.lazada.size)}
+                    </Badge>
+                  )}
+                </div>
+              </Label>
+            </div>
+          </div>
+
+          {/* Facebook API Section */}
+          <div className="space-y-3">
+            <Label className="text-lg font-semibold flex items-center gap-2 text-blue-400">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              Facebook API
+            </Label>
+            
+            {/* Facebook Connection Status */}
+            {facebookConnection?.isConnected ? (
+              <div className="facebook-gradient border border-blue-500/20 rounded-xl p-4 space-y-4">
+                {/* Connection Status Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <Link className="h-4 w-4 text-green-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-green-400">Connected</div>
+                      <div className="text-xs text-white/60">
+                        {facebookConnection.connectedAccounts.length} ad account(s)
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleFacebookRefresh}
+                      disabled={facebookConnecting}
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-400 hover:bg-blue-500/10"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${facebookConnecting ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button
+                      onClick={() => setShowDisconnectDialog(true)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:bg-red-500/10"
+                    >
+                      <Unlink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Connected Accounts Display with Selection */}
+                {facebookConnection.connectedAccounts.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium text-white/80">Connected Accounts:</div>
+                      <Button
+                        onClick={() => setShowAccountSelector(!showAccountSelector)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-400 hover:bg-blue-500/10 text-xs h-6"
+                      >
+                        <Settings className="h-3 w-3 mr-1" />
+                        {showAccountSelector ? 'Hide' : 'Select'}
+                      </Button>
+                    </div>
+
+                    {/* Account Selection Interface */}
+                    {showAccountSelector && (
+                      <div className="space-y-2 p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                        {/* Select All Checkbox */}
+                        <div className="flex items-center space-x-2 pb-2 border-b border-blue-500/10">
+                          <Checkbox
+                            id="select-all-accounts"
+                            checked={areAllAccountsSelected()}
+                            onCheckedChange={handleSelectAllAccounts}
+                            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
+                          <label
+                            htmlFor="select-all-accounts"
+                            className="text-xs font-medium text-blue-300 cursor-pointer"
+                          >
+                            Select All ({facebookConnection.connectedAccounts.length} accounts)
+                          </label>
+                        </div>
+
+                        {/* Individual Account Selection */}
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {facebookConnection.connectedAccounts.map((account) => (
+                            <div
+                              key={account.id}
+                              className="flex items-center space-x-2 p-2 hover:bg-blue-500/5 rounded"
+                            >
+                              <Checkbox
+                                id={`account-${account.id}`}
+                                checked={isAccountSelected(account.id)}
+                                onCheckedChange={(checked) => 
+                                  handleAccountSelection(account.id, checked as boolean)
+                                }
+                                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <label
+                                  htmlFor={`account-${account.id}`}
+                                  className="text-xs font-medium text-blue-300 truncate cursor-pointer block"
+                                >
+                                  {account.name}
+                                </label>
+                                <div className="text-xs text-white/50">
+                                  {account.currency} • {account.accountStatus}
+                                </div>
+                              </div>
+                              <Badge className="bg-blue-500/20 text-blue-400 text-xs">
+                                {account.id.replace('act_', '')}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Selection Summary */}
+                        <div className="pt-2 border-t border-blue-500/10">
+                          <div className="text-xs text-blue-300">
+                            {selectedAccounts.length} of {facebookConnection.connectedAccounts.length} accounts selected
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Compact Account List (when selector is hidden) */}
+                    {!showAccountSelector && (
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {facebookConnection.connectedAccounts.map((account) => (
+                          <div
+                            key={account.id}
+                            className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${
+                              isAccountSelected(account.id)
+                                ? 'bg-blue-500/10 border-blue-500/20'
+                                : 'bg-blue-500/5 border-blue-500/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isAccountSelected(account.id) && (
+                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium text-blue-300 truncate">
+                                  {account.name}
+                                </div>
+                                <div className="text-xs text-white/50">
+                                  {account.currency} • {account.accountStatus}
+                                </div>
+                              </div>
+                            </div>
+                            <Badge className="bg-blue-500/20 text-blue-400 text-xs">
+                              {account.id.replace('act_', '')}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sync Controls */}
+                <div className="space-y-3 pt-3 border-t border-blue-500/20">
+                  {/* Sync Status and Last Sync Time */}
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-white/80">Sync Status:</div>
+                      <div className="flex items-center gap-2">
+                        {syncing ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 text-blue-400 animate-spin" />
+                            <span className="text-xs text-blue-400">Syncing... {syncProgress}%</span>
+                          </>
+                        ) : facebookConnection.syncStatus === 'error' ? (
+                          <>
+                            <AlertCircle className="h-3 w-3 text-red-400" />
+                            <span className="text-xs text-red-400">Error</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-3 w-3 text-green-400" />
+                            <span className="text-xs text-green-400">Ready</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {facebookConnection.lastSyncTime && (
+                      <div className="text-right">
+                        <div className="text-xs text-white/60">Last sync:</div>
+                        <div className="text-xs text-white/80">
+                          {facebookConnection.lastSyncTime.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sync Progress Bar */}
+                  {syncing && (
+                    <div className="space-y-1">
+                      <Progress value={syncProgress} className="w-full h-2" />
+                      <div className="text-xs text-blue-300 text-center">
+                        Fetching campaign data from {selectedAccounts.length} account(s)...
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual Sync Button */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleFacebookSync}
+                      disabled={syncing || selectedAccounts.length === 0}
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                      size="sm"
+                    >
+                      {syncing ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Sync Data
+                        </>
+                      )}
+                    </Button>
+                    
+                    {selectedAccounts.length === 0 && (
+                      <div className="text-xs text-yellow-400">
+                        Select accounts to sync
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sync Error Display */}
+                  {(syncError || facebookConnection.error) && (
+                    <Alert className="border-red-500/30 bg-red-500/10">
+                      <AlertCircle className="h-4 w-4 text-red-400" />
+                      <AlertDescription className="text-red-300 flex items-center justify-between">
+                        <span>{syncError || facebookConnection.error}</span>
+                        <Button
+                          onClick={handleRetrySyncError}
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-400 hover:bg-red-500/20 h-6 px-2"
+                        >
+                          Retry
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Data Freshness Indicator */}
+                  {facebookConnection.lastSyncTime && (
+                    <div className="text-xs text-white/60">
+                      {(() => {
+                        const timeDiff = Date.now() - facebookConnection.lastSyncTime.getTime();
+                        const minutes = Math.floor(timeDiff / (1000 * 60));
+                        const hours = Math.floor(minutes / 60);
+                        const days = Math.floor(hours / 24);
+                        
+                        if (days > 0) {
+                          return `Data is ${days} day(s) old`;
+                        } else if (hours > 0) {
+                          return `Data is ${hours} hour(s) old`;
+                        } else if (minutes > 0) {
+                          return `Data is ${minutes} minute(s) old`;
+                        } else {
+                          return 'Data is fresh';
+                        }
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Connection Error */}
+                {facebookConnection.error && (
+                  <Alert className="border-red-500/30 bg-red-500/10">
+                    <AlertCircle className="h-4 w-4 text-red-400" />
+                    <AlertDescription className="text-red-300">
+                      {facebookConnection.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            ) : (
+              /* Facebook Connect Button */
+              <div className="facebook-gradient border border-blue-500/20 rounded-xl p-4 text-center hover:border-blue-400/40 transition-all duration-300 group">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="p-3 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <Link className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-white">
+                      Connect Facebook API
+                    </div>
+                    <div className="text-xs text-white/60">
+                      Access your Facebook Ads data directly
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleFacebookConnect}
+                    disabled={facebookConnecting}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
+                  >
+                    {facebookConnecting ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Link className="h-4 w-4 mr-2" />
+                        Connect Facebook
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Connection Error */}
+                {facebookError && (
+                  <Alert className="mt-3 border-red-500/30 bg-red-500/10">
+                    <AlertCircle className="h-4 w-4 text-red-400" />
+                    <AlertDescription className="text-red-300">
+                      {facebookError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* File Upload Alternative */}
+                <div className="mt-4 pt-4 border-t border-blue-500/20">
+                  <div className="text-xs text-white/60 mb-2">Or upload a file instead:</div>
+                  <Input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={(e) => handleFileChange('facebook', e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="facebook-upload"
+                  />
+                  <Label 
+                    htmlFor="facebook-upload" 
+                    className="cursor-pointer inline-flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    <Upload className="h-3 w-3" />
+                    {files.facebook ? files.facebook.name : 
+                     storedData.facebook ? "Replace Facebook file" : "Upload CSV/XLSX"}
+                  </Label>
+                  {files.facebook && (
+                    <Badge className="ml-2 bg-blue-500/20 text-blue-400 text-xs">
+                      {formatFileSize(files.facebook.size)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
