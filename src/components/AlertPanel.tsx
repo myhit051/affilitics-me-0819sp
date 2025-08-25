@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { 
   AlertTriangle, 
   TrendingUp, 
-  TrendingDown, 
   Bell,
   X,
   CheckCircle,

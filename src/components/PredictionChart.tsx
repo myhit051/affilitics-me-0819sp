@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
-  LineChart, 
   Line, 
   XAxis, 
   YAxis, 
@@ -11,7 +10,6 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  Area,
   ComposedChart,
   ReferenceLine
 } from "recharts";
@@ -19,7 +17,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   BarChart3, 
-  Calendar,
   Target,
   AlertTriangle
 } from "lucide-react";
@@ -35,14 +32,14 @@ interface PredictionData {
 }
 
 interface PredictionChartProps {
-  title: string;
-  metric: string;
-  data: PredictionData[];
-  currentValue: number;
-  predictedValue: number;
-  confidence: number;
-  trend: 'up' | 'down' | 'stable';
-  timeframe: string;
+  title?: string;
+  metric?: string;
+  data?: PredictionData[];
+  currentValue?: number;
+  predictedValue?: number;
+  confidence?: number;
+  trend?: 'up' | 'down' | 'stable';
+  timeframe?: string;
   unit?: string;
   showConfidenceInterval?: boolean;
 }
@@ -129,8 +126,9 @@ const mockPredictions = {
 };
 
 export default function PredictionChart({ 
-  title,
-  metric,
+  title = "AI Predictions",
+  metric = "ROI",
+  data,
   currentValue,
   predictedValue,
   confidence,
