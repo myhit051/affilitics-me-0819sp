@@ -172,7 +172,7 @@ export default function TopAdsSpentTable({
     filteredShopeeOrders.forEach(order => {
       const subIds = [order['Sub_id1'], order['Sub_id2'], order['Sub_id3'], order['Sub_id4'], order['Sub_id5']]
         .filter(subId => subId && typeof subId === 'string' && subId.trim() !== '');
-      const orderId = order['เลขที่คำสั่งซื้อ'];
+      const orderId = order['รหัสการสั่งซื้อ'];
       const commission = parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
       subIds.forEach(subId => {
         if (!subIdMap[subId]) {

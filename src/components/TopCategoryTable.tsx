@@ -166,7 +166,7 @@ export default function TopCategoryTable({
         const category = order['L1 หมวดหมู่สากล'] || 'Other';
         const commission = parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
         const amount = parseNumber(order['มูลค่าซื้อ(฿)']);
-        const orderId = order['เลขที่คำสั่งซื้อ'];
+        const orderId = order['รหัสการสั่งซื้อ'];
         const key = `${category}_Shopee`;
         if (!categoryMap[key]) {
           categoryMap[key] = {

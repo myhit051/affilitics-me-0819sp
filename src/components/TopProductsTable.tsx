@@ -166,7 +166,7 @@ export default function TopProductsTable({
         const productName = order['ชื่อรายการสินค้า'] || 'Unknown Product';
         const commission = parseNumber(order['คอมมิชชั่นสินค้าโดยรวม(฿)']);
         const amount = parseNumber(order['มูลค่าซื้อ(฿)']);
-        const orderId = order['เลขที่คำสั่งซื้อ'];
+        const orderId = order['รหัสการสั่งซื้อ'];
         const key = `${productName}_Shopee`;
         if (!productMap[key]) {
           productMap[key] = {

@@ -55,7 +55,7 @@ describe('DataMerger Integration Tests', () => {
       const existingFileData = {
         shopeeOrders: [
           {
-            'เลขที่คำสั่งซื้อ': 'ORDER001',
+            'รหัสการสั่งซื้อ': 'ORDER001',
             'ชื่อสินค้า': 'Product 1',
             'คอมมิชชั่นสินค้าโดยรวม(฿)': '100',
             'วันที่สั่งซื้อ': '2024-01-15'
@@ -133,7 +133,7 @@ describe('DataMerger Integration Tests', () => {
       const fileData = {
         shopeeOrders: [
           {
-            'เลขที่คำสั่งซื้อ': 'ORDER001',
+            'รหัสการสั่งซื้อ': 'ORDER001',
             'ชื่อสินค้า': 'Product 1',
             'คอมมิชชั่นสินค้าโดยรวม(฿)': '100'
           }
@@ -146,7 +146,7 @@ describe('DataMerger Integration Tests', () => {
       const apiData = {
         shopeeOrders: [
           {
-            'เลขที่คำสั่งซื้อ': 'ORDER001', // Same order ID
+            'รหัสการสั่งซื้อ': 'ORDER001', // Same order ID
             'ชื่อสินค้า': 'Product 1 Updated',
             'คอมมิชชั่นสินค้าโดยรวม(฿)': '120'
           }
@@ -247,14 +247,14 @@ describe('DataMerger Integration Tests', () => {
 
     it('should generate comprehensive merge statistics', () => {
       const fileData = {
-        shopeeOrders: [{ 'เลขที่คำสั่งซื้อ': 'ORDER001' }],
+        shopeeOrders: [{ 'รหัสการสั่งซื้อ': 'ORDER001' }],
         lazadaOrders: [{ 'Check Out ID': 'CHECKOUT001' }],
         facebookAds: [{ 'Campaign name': 'Campaign1', 'Ad set name': 'AdSet1', 'Ad name': 'Ad1', 'Date': '2024-01-01' }],
         campaigns: [{ id: 1, subId: 'sub_001', platform: 'Shopee' }]
       };
 
       const apiData = {
-        shopeeOrders: [{ 'เลขที่คำสั่งซื้อ': 'ORDER002' }],
+        shopeeOrders: [{ 'รหัสการสั่งซื้อ': 'ORDER002' }],
         lazadaOrders: [],
         facebookAds: [{ 'Campaign name': 'Campaign2', 'Ad set name': 'AdSet2', 'Ad name': 'Ad2', 'Date': '2024-01-02' }],
         campaigns: [{ id: 1001, subId: 'sub_002', platform: 'Facebook' }]
@@ -284,14 +284,14 @@ describe('DataMerger Integration Tests', () => {
   describe('Data source tracking', () => {
     it('should properly track data sources throughout merge process', () => {
       const fileData = {
-        shopeeOrders: [{ 'เลขที่คำสั่งซื้อ': 'ORDER001' }],
+        shopeeOrders: [{ 'รหัสการสั่งซื้อ': 'ORDER001' }],
         lazadaOrders: [],
         facebookAds: [],
         campaigns: []
       };
 
       const apiData = {
-        shopeeOrders: [{ 'เลขที่คำสั่งซื้อ': 'ORDER002' }],
+        shopeeOrders: [{ 'รหัสการสั่งซื้อ': 'ORDER002' }],
         lazadaOrders: [],
         facebookAds: [],
         campaigns: []

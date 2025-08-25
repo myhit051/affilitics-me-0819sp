@@ -5,7 +5,7 @@ export type DataSource = 'file_import' | 'facebook_api' | 'merged';
 
 // Enhanced interfaces with data source tracking
 export interface EnhancedShopeeOrder {
-  'เลขที่คำสั่งซื้อ': string;
+  'รหัสการสั่งซื้อ': string; // ใช้เป็น key หลักสำหรับ unique orders
   'รหัสสินค้า': string;
   'ชื่อสินค้า': string;
   'ราคาสินค้า(฿)': string;
@@ -161,7 +161,7 @@ export class DataMerger {
     return this.mergeOrdersByUniqueId(
       enhancedFileOrders,
       enhancedApiOrders,
-      'เลขที่คำสั่งซื้อ'
+      'รหัสการสั่งซื้อ'
     );
   }
 

@@ -66,7 +66,7 @@ export default function ShopeeAffiliate() {
       // คำนวณ totalAmount จากข้อมูลดิบ
       const uniqueShopeeOrders = new Map();
       shopeeOrders.forEach(order => {
-        const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
+        const orderId = order['รหัสการสั่งซื้อ'];
         if (!uniqueShopeeOrders.has(orderId)) {
           uniqueShopeeOrders.set(orderId, {
             ...order,
