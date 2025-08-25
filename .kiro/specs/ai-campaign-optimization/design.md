@@ -2,9 +2,15 @@
 
 ## Overview
 
-ระบบ AI-Powered Campaign Optimization จะเป็นส่วนขยายของ Affilitics.me Dashboard ที่มีอยู่ โดยเพิ่มความสามารถในการวิเคราะห์และแนะนำการปรับปรุง Campaign อัตโนมัติผ่าน Machine Learning algorithms
+ระบบ AI-Powered Campaign Optimization จะเป็นส่วนขยายของ Affilitics.me Dashboard ที่มีอยู่ โดยใช้ข้อมูลและโครงสร้างที่มีอยู่แล้วในระบบ เพื่อเพิ่มความสามารถในการวิเคราะห์และแนะนำการปรับปรุง Campaign อัตโนมัติผ่าน Machine Learning algorithms
 
-ระบบจะประกอบด้วย AI Analysis Engine, Prediction Models, Recommendation System และ User Interface ที่ผสานเข้ากับ Dashboard เดิมอย่างลงตัว
+ระบบจะใช้ประโยชน์จาก:
+- **Existing Data Structures**: CalculatedMetrics, DailyMetrics, TraditionalCampaign
+- **Current Data Sources**: File Import (Excel/CSV), Facebook API Integration
+- **Existing Components**: Dashboard, CampaignTable, StatsChart, SubIdTable
+- **Current Data Flow**: useImportedData hook, data-merger.ts, affiliateCalculations.ts
+
+AI จะวิเคราะห์ข้อมูลเหล่านี้และแสดงผลผ่าน dedicated AI Optimization page ที่ใช้ UI components และ design system เดียวกันกับระบบเดิม
 
 ## Architecture
 
@@ -32,7 +38,7 @@ graph TB
     F --> O[ROI Predictor]
     F --> P[Trend Forecaster]
     
-    B --> Q[AI Dashboard UI]
+    B --> Q[AI Optimization Page]
     Q --> R[Recommendations View]
     Q --> S[Predictions View]
     Q --> T[Insights View]
@@ -44,6 +50,7 @@ graph TB
 sequenceDiagram
     participant U as User
     participant D as Dashboard
+    participant AIP as AI Optimization Page
     participant AI as AI Engine
     participant ML as ML Models
     participant DB as Data Store
@@ -54,8 +61,10 @@ sequenceDiagram
     AI->>ML: Process Data
     ML->>AI: Return Analysis Results
     AI->>DB: Store Recommendations
-    AI->>D: Send Optimization Results
-    D->>U: Display AI Recommendations
+    U->>AIP: Navigate to AI Optimization
+    AIP->>AI: Request AI Results
+    AI->>AIP: Send Optimization Results
+    AIP->>U: Display AI Recommendations
 ```
 
 ## Components and Interfaces
@@ -113,11 +122,12 @@ interface PredictionService {
 }
 ```
 
-### 5. AI Dashboard Components
+### 5. AI Page and Components
 
-**AIOptimizationDashboard (`src/components/AIOptimizationDashboard.tsx`):**
-- หน้าหลักสำหรับแสดงผล AI insights
+**AIOptimization Page (`src/pages/AIOptimization.tsx`):**
+- หน้าหลักสำหรับแสดงผล AI insights แยกจาก Dashboard
 - รวม recommendations, predictions และ alerts
+- ใช้ Layout component เดียวกันกับหน้าอื่นๆ
 
 **RecommendationCard (`src/components/RecommendationCard.tsx`):**
 - แสดงคำแนะนำแต่ละรายการพร้อม confidence score

@@ -476,59 +476,117 @@ export function analyzeDailyPerformance(
     orderId: order['รหัสการสั่งซื้อ'],
     timeOrder: order['เวลาที่สั่งซื้อ'],
     dateOrder: order['วันที่สั่งซื้อ'],
-    status: order['สถานะการสั่งซื้อ'] || order['สถานะ']
+    status: order['สถานะการสั่งซื้อ'] || order['สถานะ'],
+    commission: order['คอมมิชชั่นสินค้าโดยรวม(฿)']
   })));
+
+  // Debug: Check if Shopee orders have valid dates
+  const ordersWithValidDates = shopeeOrders.filter(order => {
+    const possibleDateColumns = ['เวลาที่สั่งซื้อ', 'วันที่สั่งซื้อ', 'Order Time', 'Order Date', 'Date'];
+    for (const column of possibleDateColumns) {
+      if (order[column]) {
+        try {
+          const parsedDate = new Date(order[column]);
+          if (!isNaN(parsedDate.getTime())) {
+            return true;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+    return false;
+  });
+
+  console.log('🔍 SHOPEE ORDERS WITH VALID DATES:', {
+    total: shopeeOrders.length,
+    withValidDates: ordersWithValidDates.length,
+    withoutValidDates: shopeeOrders.length - ordersWithValidDates.length
+  });
   
   const dailyMap: { [key: string]: DailyMetrics } = {};
 
+  // Helper function to parse dates more reliably
+  const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    
+    try {
+      const trimmed = dateStr.trim();
+      
+      // Handle Thai date format (DD/MM/YYYY or DD/MM/YYYY HH:mm:ss)
+      if (trimmed.includes('/')) {
+        const [datePart] = trimmed.split(' '); // Remove time part if exists
+        const parts = datePart.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+          const year = parseInt(parts[2]);
+          
+          // Validate date parts
+          if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 2000) {
+            return new Date(year, month, day);
+          }
+        }
+      }
+      
+      // Handle ISO format (YYYY-MM-DD or YYYY-MM-DD HH:mm:ss)
+      if (trimmed.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const [datePart] = trimmed.split(' '); // Remove time part if exists
+        const [year, month, day] = datePart.split('-').map(Number);
+        
+        // Validate date parts
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2000) {
+          return new Date(year, month - 1, day); // month is 0-indexed
+        }
+      }
+      
+      // Try native Date parsing as fallback
+      const nativeDate = new Date(trimmed);
+      if (!isNaN(nativeDate.getTime()) && nativeDate.getFullYear() >= 2000) {
+        return nativeDate;
+      }
+      
+      return null;
+    } catch (error) {
+      console.log('🔍 DATE PARSING ERROR:', error, 'for value:', dateStr);
+      return null;
+    }
+  };
+
   // Process Facebook Ads
-  facebookAds.forEach(ad => {
+  console.log('🔍 Processing Facebook Ads...');
+  facebookAds.forEach((ad, index) => {
     const dateStr = ad['Day'] || ad['Date'];
+    console.log(`🔍 FB Ad ${index}: dateStr = "${dateStr}", amount = "${ad['Amount spent (THB)']}"`);
+    
     if (dateStr) {
-      try {
-        let adDate: Date;
+      const adDate = parseDate(dateStr);
+      
+      if (adDate) {
+        // Use local date instead of UTC to avoid timezone issues
+        const year = adDate.getFullYear();
+        const month = String(adDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adDate.getDate()).padStart(2, '0');
+        const dateKey = `${year}-${month}-${day}`;
+        console.log(`🔍 FB Ad ${index}: parsed date = ${dateKey}`);
         
-        // Handle different date formats for Facebook ads
-        if (typeof dateStr === 'string') {
-          const dateStrTrimmed = dateStr.trim();
-          
-          // Handle Thai date format (DD/MM/YYYY)
-          if (dateStrTrimmed.includes('/')) {
-            const parts = dateStrTrimmed.split('/');
-            if (parts.length === 3) {
-              const day = parseInt(parts[0]);
-              const month = parseInt(parts[1]) - 1; // Month is 0-indexed
-              const year = parseInt(parts[2]);
-              adDate = new Date(year, month, day);
-            } else {
-              adDate = new Date(dateStrTrimmed);
-            }
-          } else {
-            adDate = new Date(dateStrTrimmed);
-          }
-        } else {
-          adDate = new Date(dateStr);
+        if (!dailyMap[dateKey]) {
+          dailyMap[dateKey] = {
+            date: dateKey,
+            totalCom: 0,
+            adSpend: 0,
+            profit: 0,
+            roi: 0,
+            ordersSP: 0,
+            ordersLZD: 0
+          };
         }
         
-        if (adDate && !isNaN(adDate.getTime())) {
-          const dateKey = adDate.toISOString().split('T')[0];
-          
-          if (!dailyMap[dateKey]) {
-            dailyMap[dateKey] = {
-              date: dateKey,
-              totalCom: 0,
-              adSpend: 0,
-              profit: 0,
-              roi: 0,
-              ordersSP: 0,
-              ordersLZD: 0
-            };
-          }
-          
-          dailyMap[dateKey].adSpend += parseNumber(ad['Amount spent (THB)']);
-        }
-      } catch (error) {
-        // Skip invalid dates
+        const adSpend = parseNumber(ad['Amount spent (THB)']);
+        dailyMap[dateKey].adSpend += adSpend;
+        console.log(`🔍 FB Ad ${index}: added ${adSpend} to ${dateKey}, total now: ${dailyMap[dateKey].adSpend}`);
+      } else {
+        console.log(`🔍 FB Ad ${index}: failed to parse date "${dateStr}"`);
       }
     }
   });
@@ -564,71 +622,37 @@ export function analyzeDailyPerformance(
     uniqueOrderIds: Array.from(orderCommissionMap.keys())
   });
 
-  Array.from(orderCommissionMap.values()).forEach(({ order, totalCommission }) => {
+  console.log('🔍 Processing Shopee orders...');
+  Array.from(orderCommissionMap.values()).forEach(({ order, totalCommission }, index) => {
     const possibleDateColumns = ['เวลาที่สั่งซื้อ', 'วันที่สั่งซื้อ', 'Order Time', 'Order Date', 'Date'];
     let orderDate = null;
     let dateKey = null;
     
-
+    console.log(`🔍 Shopee Order ${index}: orderId = ${order['รหัสการสั่งซื้อ']}, commission = ${totalCommission}`);
     
     // Try to parse date from multiple columns with better date parsing
     for (const column of possibleDateColumns) {
       if (order[column]) {
-        try {
-          let parsedDate: Date;
+        console.log(`🔍 Shopee Order ${index}: trying column "${column}" = "${order[column]}"`);
+        
+        orderDate = parseDate(order[column]);
+        if (orderDate) {
+          // Use local date instead of UTC to avoid timezone issues
+          const year = orderDate.getFullYear();
+          const month = String(orderDate.getMonth() + 1).padStart(2, '0');
+          const day = String(orderDate.getDate()).padStart(2, '0');
+          dateKey = `${year}-${month}-${day}`;
           
-          // Handle different date formats
-          if (typeof order[column] === 'string') {
-            const dateStr = order[column].trim();
-            
-            // Handle Thai date format (DD/MM/YYYY)
-            if (dateStr.includes('/')) {
-              const parts = dateStr.split('/');
-              if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1; // Month is 0-indexed
-                const year = parseInt(parts[2]);
-                parsedDate = new Date(year, month, day);
-              } else {
-                parsedDate = new Date(dateStr);
-              }
-            } else {
-              // Handle ISO date format (YYYY-MM-DD HH:mm:ss)
-              if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
-                const [datePart, timePart] = dateStr.split(' ');
-                const [year, month, day] = datePart.split('-').map(Number);
-                parsedDate = new Date(year, month - 1, day); // month is 0-indexed
-              } else {
-                parsedDate = new Date(dateStr);
-              }
-            }
-          } else {
-            parsedDate = new Date(order[column]);
-          }
-          
-          if (parsedDate && !isNaN(parsedDate.getTime())) {
-            orderDate = parsedDate;
-            // Use local date instead of UTC to avoid timezone issues
-            const year = orderDate.getFullYear();
-            const month = String(orderDate.getMonth() + 1).padStart(2, '0');
-            const day = String(orderDate.getDate()).padStart(2, '0');
-            dateKey = `${year}-${month}-${day}`;
-            
-
-            
-            break;
-          }
-        } catch (error) {
-          console.log('🔍 DATE PARSING ERROR:', error, 'for column:', column, 'value:', order[column]);
+          console.log(`🔍 Shopee Order ${index}: parsed date = ${dateKey}`);
+          break;
         }
       }
     }
     
-    // If no valid date found, use today's date as fallback
+    // If no valid date found, skip this order instead of using fallback
     if (!dateKey) {
-      const today = new Date();
-      dateKey = today.toISOString().split('T')[0];
-      console.log('🔍 USING FALLBACK DATE:', dateKey);
+      console.log(`🔍 Shopee Order ${index}: NO VALID DATE FOUND, skipping order`);
+      return;
     }
     
     if (!dailyMap[dateKey]) {
@@ -646,7 +670,7 @@ export function analyzeDailyPerformance(
     dailyMap[dateKey].totalCom += totalCommission;
     dailyMap[dateKey].ordersSP += 1; // เพิ่มการนับ Shopee orders
     
-
+    console.log(`🔍 Shopee Order ${index}: added ${totalCommission} to ${dateKey}, total now: ${dailyMap[dateKey].totalCom}`);
   });
 
   // Process Lazada orders with new filtering logic
@@ -661,54 +685,41 @@ export function analyzeDailyPerformance(
     uniqueSkuOrders.add(order['Sku Order ID']);
   });
 
-  fulfilledValidLazadaOrders.forEach(order => {
+  console.log('🔍 Processing Lazada orders...');
+  fulfilledValidLazadaOrders.forEach((order, index) => {
     const dateStr = order['Conversion Time'] || order['Order Time'];
+    console.log(`🔍 Lazada Order ${index}: dateStr = "${dateStr}", payout = "${order['Payout']}"`);
+    
     if (dateStr) {
-      try {
-        let orderDate: Date;
+      const orderDate = parseDate(dateStr);
+      
+      if (orderDate) {
+        // Use local date instead of UTC to avoid timezone issues
+        const year = orderDate.getFullYear();
+        const month = String(orderDate.getMonth() + 1).padStart(2, '0');
+        const day = String(orderDate.getDate()).padStart(2, '0');
+        const dateKey = `${year}-${month}-${day}`;
+        console.log(`🔍 Lazada Order ${index}: parsed date = ${dateKey}`);
         
-        // Handle different date formats for Lazada orders
-        if (typeof dateStr === 'string') {
-          const dateStrTrimmed = dateStr.trim();
-          
-          // Handle Thai date format (DD/MM/YYYY)
-          if (dateStrTrimmed.includes('/')) {
-            const parts = dateStrTrimmed.split('/');
-            if (parts.length === 3) {
-              const day = parseInt(parts[0]);
-              const month = parseInt(parts[1]) - 1; // Month is 0-indexed
-              const year = parseInt(parts[2]);
-              orderDate = new Date(year, month, day);
-            } else {
-              orderDate = new Date(dateStrTrimmed);
-            }
-          } else {
-            orderDate = new Date(dateStrTrimmed);
-          }
-        } else {
-          orderDate = new Date(dateStr);
+        if (!dailyMap[dateKey]) {
+          dailyMap[dateKey] = {
+            date: dateKey,
+            totalCom: 0,
+            adSpend: 0,
+            profit: 0,
+            roi: 0,
+            ordersSP: 0,
+            ordersLZD: 0
+          };
         }
         
-        if (orderDate && !isNaN(orderDate.getTime())) {
-          const dateKey = orderDate.toISOString().split('T')[0];
-          
-          if (!dailyMap[dateKey]) {
-            dailyMap[dateKey] = {
-              date: dateKey,
-              totalCom: 0,
-              adSpend: 0,
-              profit: 0,
-              roi: 0,
-              ordersSP: 0,
-              ordersLZD: 0
-            };
-          }
-          
-          dailyMap[dateKey].totalCom += parseNumber(order['Payout']);
-          dailyMap[dateKey].ordersLZD += 1; // เพิ่มการนับ Lazada orders
-        }
-      } catch (error) {
-        // Skip invalid dates
+        const payout = parseNumber(order['Payout']);
+        dailyMap[dateKey].totalCom += payout;
+        dailyMap[dateKey].ordersLZD += 1; // เพิ่มการนับ Lazada orders
+        
+        console.log(`🔍 Lazada Order ${index}: added ${payout} to ${dateKey}, total now: ${dailyMap[dateKey].totalCom}`);
+      } else {
+        console.log(`🔍 Lazada Order ${index}: failed to parse date "${dateStr}"`);
       }
     }
   });
@@ -722,10 +733,18 @@ export function analyzeDailyPerformance(
   const result = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
   console.log('analyzeDailyPerformance result:', {
     totalDays: result.length,
-    sampleData: result.slice(0, 3)
+    sampleData: result.slice(0, 3),
+    totalCom: result.reduce((sum, day) => sum + day.totalCom, 0),
+    totalAdSpend: result.reduce((sum, day) => sum + day.adSpend, 0),
+    totalOrdersSP: result.reduce((sum, day) => sum + day.ordersSP, 0)
   });
   
-
+  if (result.length === 0) {
+    console.log('⚠️ WARNING: No daily metrics generated! This might be due to:');
+    console.log('   - No valid dates in Shopee orders');
+    console.log('   - No Facebook ads data');
+    console.log('   - All orders are cancelled');
+  }
   
   return result;
 }

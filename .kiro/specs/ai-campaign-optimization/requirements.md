@@ -2,35 +2,41 @@
 
 ## Introduction
 
-ระบบ AI-Powered Campaign Optimization เป็นฟีเจอร์ที่จะช่วยให้ผู้ใช้สามารถปรับปรุงประสิทธิภาพของ Campaign Affiliate Marketing ได้อย่างอัตโนมัติ โดยใช้ Machine Learning และ AI เพื่อวิเคราะห์ข้อมูลในอดีตและให้คำแนะนำที่เป็นประโยชน์สำหรับการปรับปรุง Campaign ในอนาคต
+ระบบ AI-Powered Campaign Optimization เป็นฟีเจอร์ที่จะเพิ่มเข้าไปใน Affilitics.me Dashboard ที่มีอยู่ เพื่อช่วยให้ผู้ใช้สามารถปรับปรุงประสิทธิภาพของ Campaign Affiliate Marketing ได้อย่างอัตโนมัติ โดยใช้ Machine Learning และ AI เพื่อวิเคราะห์ข้อมูลที่มีอยู่แล้วในระบบและให้คำแนะนำที่เป็นประโยชน์
 
-ระบบนี้จะวิเคราะห์ข้อมูลจาก Shopee, Lazada และ Facebook Ads เพื่อหาแพทเทิร์นที่ทำให้ Campaign ประสบความสำเร็จ และแนะนำการปรับปรุงที่เหมาะสมสำหรับแต่ละ Sub ID และแต่ละแพลตฟอร์ม
+ระบบจะใช้ข้อมูลที่มีอยู่แล้วจาก:
+- **File Import System** (Excel/CSV) สำหรับ Shopee, Lazada, Facebook
+- **Facebook API Integration** ที่เชื่อมต่อแล้ว
+- **Data Merger System** ที่รวมข้อมูลจากหลายแหล่ง
+- **Existing Analytics** (calculatedMetrics, dailyMetrics)
+
+AI จะวิเคราะห์ข้อมูลเหล่านี้เพื่อหาแพทเทิร์นที่ทำให้ Campaign ประสบความสำเร็จ และแนะนำการปรับปรุงที่เหมาะสมสำหรับแต่ละ Sub ID และแต่ละแพลตฟอร์ม
 
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As an affiliate marketer, I want the system to automatically analyze my campaign performance and provide AI-powered optimization recommendations, so that I can improve my ROI and campaign effectiveness without manual analysis.
+**User Story:** As an affiliate marketer, I want the system to automatically analyze my existing campaign data and provide AI-powered optimization recommendations, so that I can improve my ROI and campaign effectiveness without manual analysis.
 
 #### Acceptance Criteria
 
-1. WHEN the user has imported campaign data from Shopee, Lazada, and Facebook Ads THEN the system SHALL automatically analyze the data using AI algorithms
-2. WHEN the AI analysis is complete THEN the system SHALL display optimization recommendations in a dedicated dashboard section
-3. WHEN displaying recommendations THEN the system SHALL show specific actionable insights for budget allocation, Sub ID performance, and platform optimization
-4. WHEN recommendations are generated THEN the system SHALL provide confidence scores for each recommendation
-5. IF insufficient data is available THEN the system SHALL display a message indicating more data is needed for accurate recommendations
+1. WHEN the user has data in the system (from file import or Facebook API) THEN the system SHALL automatically trigger AI analysis using existing calculatedMetrics and rawData
+2. WHEN the AI analysis is complete THEN the system SHALL display optimization recommendations in a dedicated "AI Optimization" page accessible from the main navigation
+3. WHEN displaying recommendations THEN the system SHALL show specific actionable insights for budget allocation, Sub ID performance, and platform optimization based on existing data structures
+4. WHEN recommendations are generated THEN the system SHALL provide confidence scores for each recommendation based on data quality and quantity
+5. IF insufficient data is available (less than 7 days or 10 orders) THEN the system SHALL display a message indicating more data is needed for accurate recommendations
 
 ### Requirement 2
 
-**User Story:** As an affiliate marketer, I want to see predictive analytics for my campaigns, so that I can make data-driven decisions about future campaign investments and budget allocation.
+**User Story:** As an affiliate marketer, I want to see predictive analytics for my campaigns based on existing data patterns, so that I can make data-driven decisions about future campaign investments and budget allocation.
 
 #### Acceptance Criteria
 
-1. WHEN the user accesses the AI optimization dashboard THEN the system SHALL display predicted ROI for the next 30 days based on current trends
-2. WHEN showing predictions THEN the system SHALL include confidence intervals and risk assessments
-3. WHEN historical data spans at least 30 days THEN the system SHALL provide seasonal trend analysis and recommendations
-4. WHEN displaying predictions THEN the system SHALL show expected performance metrics for each Sub ID and platform
-5. IF prediction accuracy is below 70% THEN the system SHALL display a warning about prediction reliability
+1. WHEN the user accesses the AI Optimization page THEN the system SHALL display predicted ROI for the next 7-30 days based on existing dailyMetrics trends
+2. WHEN showing predictions THEN the system SHALL include confidence intervals and risk assessments based on data variance
+3. WHEN historical data spans at least 14 days THEN the system SHALL provide trend analysis using existing StatsChart and OrderChart data
+4. WHEN displaying predictions THEN the system SHALL show expected performance metrics for each Sub ID and platform using existing SubIdTable data
+5. IF prediction accuracy is below 60% (due to limited data) THEN the system SHALL display a warning about prediction reliability and suggest importing more data
 
 ### Requirement 3
 
@@ -58,36 +64,36 @@
 
 ### Requirement 5
 
-**User Story:** As an affiliate marketer, I want the AI system to learn from my campaign adjustments and outcomes, so that future recommendations become more accurate and personalized to my business.
+**User Story:** As an affiliate marketer, I want the AI system to learn from my campaign data patterns and improve recommendations over time, so that future suggestions become more accurate and personalized to my business.
 
 #### Acceptance Criteria
 
-1. WHEN the user implements an AI recommendation THEN the system SHALL track the outcome and measure the actual impact
-2. WHEN tracking recommendation outcomes THEN the system SHALL update its machine learning models based on the results
-3. WHEN the user rejects or modifies a recommendation THEN the system SHALL learn from this feedback to improve future suggestions
-4. WHEN sufficient feedback data is collected THEN the system SHALL personalize recommendations based on the user's preferences and success patterns
-5. IF the user provides explicit feedback on recommendations THEN the system SHALL incorporate this feedback into its learning algorithm
+1. WHEN the user imports new data THEN the system SHALL automatically retrain AI models using the updated dataset from existing data structures
+2. WHEN tracking recommendation effectiveness THEN the system SHALL compare predicted vs actual performance using existing calculatedMetrics
+3. WHEN the user provides feedback on recommendations (thumbs up/down) THEN the system SHALL store this feedback and adjust future recommendation weights
+4. WHEN sufficient historical data is available (30+ days) THEN the system SHALL personalize recommendations based on the user's successful Sub ID and platform patterns
+5. IF the user consistently ignores certain types of recommendations THEN the system SHALL reduce the priority of similar suggestions in the future
 
 ### Requirement 6
 
-**User Story:** As an affiliate marketer, I want to see AI-powered competitor analysis and market insights, so that I can understand market trends and adjust my strategies accordingly.
+**User Story:** As an affiliate marketer, I want to see AI-powered performance benchmarking and internal insights, so that I can understand my campaign patterns and identify optimization opportunities.
 
 #### Acceptance Criteria
 
-1. WHEN the user accesses the market insights section THEN the system SHALL display AI-analyzed market trends based on aggregated industry data
-2. WHEN showing market insights THEN the system SHALL compare the user's performance against industry benchmarks
-3. WHEN displaying competitor analysis THEN the system SHALL identify opportunities in underexploited market segments
-4. WHEN market trends are detected THEN the system SHALL suggest campaign adjustments to capitalize on these trends
-5. IF market data is limited THEN the system SHALL focus on internal performance optimization recommendations
+1. WHEN the user accesses the AI Optimization page THEN the system SHALL display AI-analyzed performance patterns based on their own historical data
+2. WHEN showing performance insights THEN the system SHALL compare current performance against the user's own historical benchmarks using existing metrics
+3. WHEN displaying performance analysis THEN the system SHALL identify top-performing Sub IDs, platforms, and time periods from existing data
+4. WHEN performance patterns are detected THEN the system SHALL suggest campaign adjustments based on successful historical patterns
+5. IF limited historical data is available THEN the system SHALL focus on current data optimization and suggest data collection improvements
 
 ### Requirement 7
 
-**User Story:** As an affiliate marketer, I want to use AI-powered budget optimization that automatically suggests optimal budget distribution across platforms and Sub IDs, so that I can maximize my overall ROI.
+**User Story:** As an affiliate marketer, I want to use AI-powered budget optimization that suggests optimal budget distribution across platforms and Sub IDs based on my existing performance data, so that I can maximize my overall ROI.
 
 #### Acceptance Criteria
 
-1. WHEN the user requests budget optimization THEN the system SHALL analyze historical performance data to suggest optimal budget allocation
-2. WHEN suggesting budget allocation THEN the system SHALL consider seasonality, platform performance, and Sub ID effectiveness
-3. WHEN displaying budget recommendations THEN the system SHALL show expected ROI improvement and risk assessment for each suggestion
-4. WHEN the user sets budget constraints THEN the system SHALL optimize within those constraints while maximizing expected returns
-5. IF budget optimization results in significant changes (>30% reallocation) THEN the system SHALL provide detailed justification for the recommendations
+1. WHEN the user requests budget optimization THEN the system SHALL analyze existing calculatedMetrics and SubId performance data to suggest optimal budget allocation
+2. WHEN suggesting budget allocation THEN the system SHALL consider platform performance (Shopee vs Lazada vs Facebook), Sub ID effectiveness from existing SubIdTable data, and time-based patterns from dailyMetrics
+3. WHEN displaying budget recommendations THEN the system SHALL show expected ROI improvement based on historical performance patterns and risk assessment for each suggestion
+4. WHEN the user sets budget constraints THEN the system SHALL optimize within those constraints while maximizing expected returns based on existing ROI calculations
+5. IF budget optimization results in significant changes (>30% reallocation) THEN the system SHALL provide detailed justification using existing performance data and metrics

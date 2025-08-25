@@ -125,52 +125,70 @@ export function useImportedData() {
     console.log('🔄 useEffect triggered:', {
       hasImportedData: !!importedData,
       hasCalculatedMetrics: !!calculatedMetrics,
+      hasDailyMetrics: !!dailyMetrics && dailyMetrics.length > 0,
       importedDataLength: importedData?.shopeeOrders?.length || 0
     });
     
-    if (importedData && !calculatedMetrics) {
+    if (importedData && (!calculatedMetrics || !dailyMetrics || dailyMetrics.length === 0)) {
       console.log('🔄 Processing data from localStorage...');
-      const metrics = calculateMetrics(
-        importedData.shopeeOrders,
-        importedData.lazadaOrders,
-        importedData.facebookAds,
-        [], // Don't filter further - data is already filtered by date
-        "all", // Don't filter further
-        [], // Don't filter further
-        "all" // Don't filter further
-      );
-      setCalculatedMetrics(metrics);
-      
-      // Also process daily metrics
-      const daily = analyzeDailyPerformance(
-        importedData.shopeeOrders,
-        importedData.lazadaOrders,
-        importedData.facebookAds
-      );
-      setDailyMetrics(daily);
-      
-      // Process sub-id analysis
-      const subIdAnalysis = analyzeSubIdPerformance(
-        importedData.shopeeOrders,
-        importedData.lazadaOrders,
-        importedData.facebookAds,
-        metrics.totalAdsSpent
-      );
-      setSubIdAnalysis(subIdAnalysis);
-      
-      // Process platform analysis
-      const platforms = analyzePlatformPerformance(
-        importedData.shopeeOrders,
-        importedData.lazadaOrders,
-        metrics.totalAdsSpent
-      );
-      setPlatformAnalysis(platforms);
-      
-      console.log('✅ Auto-processing completed');
-    } else if (importedData && calculatedMetrics) {
-      console.log('🔄 Data already processed, calculatedMetrics exists');
+      try {
+        const metrics = calculateMetrics(
+          importedData.shopeeOrders,
+          importedData.lazadaOrders,
+          importedData.facebookAds,
+          [], // Don't filter further - data is already filtered by date
+          "all", // Don't filter further
+          [], // Don't filter further
+          "all" // Don't filter further
+        );
+        setCalculatedMetrics(metrics);
+        
+        // Also process daily metrics
+        const daily = analyzeDailyPerformance(
+          importedData.shopeeOrders,
+          importedData.lazadaOrders,
+          importedData.facebookAds
+        );
+        console.log('🔄 Generated daily metrics:', {
+          length: daily.length,
+          sample: daily.slice(0, 3)
+        });
+        setDailyMetrics(daily);
+        
+        // Process sub-id analysis
+        const subIdAnalysis = analyzeSubIdPerformance(
+          importedData.shopeeOrders,
+          importedData.lazadaOrders,
+          importedData.facebookAds,
+          metrics.totalAdsSpent
+        );
+        setSubIdAnalysis(subIdAnalysis);
+        
+        // Process platform analysis
+        const platforms = analyzePlatformPerformance(
+          importedData.shopeeOrders,
+          importedData.lazadaOrders,
+          metrics.totalAdsSpent
+        );
+        setPlatformAnalysis(platforms);
+        
+        // Save updated daily metrics to localStorage
+        try {
+          localStorage.setItem('affiliateDailyMetrics', JSON.stringify(daily));
+          console.log('✅ Daily metrics saved to localStorage');
+        } catch (error) {
+          console.warn('Failed to save daily metrics to localStorage:', error);
+        }
+        
+        console.log('✅ Auto-processing completed');
+      } catch (error) {
+        console.error('❌ Error in auto-processing data:', error);
+        // Don't set calculatedMetrics to null, let it remain null so it can retry
+      }
+    } else if (importedData && calculatedMetrics && dailyMetrics && dailyMetrics.length > 0) {
+      console.log('🔄 Data already processed, all metrics exist');
     }
-  }, [importedData, calculatedMetrics]);
+  }, [importedData, calculatedMetrics, dailyMetrics]);
 
   const parseDate = (dateStr: string, timeStr?: string): Date | null => {
     if (!dateStr) return null;

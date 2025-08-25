@@ -22,6 +22,7 @@ import FacebookCallback from "./pages/FacebookCallback";
 import CloudSync from "./pages/CloudSync";
 import FacebookAdsAPI from "./pages/FacebookAdsAPI";
 import FacebookTest from "./pages/FacebookTest";
+import AIOptimization from "./pages/AIOptimization";
 import { getProductionConfig } from "./config/production";
 import { analytics } from "./lib/analytics";
 
@@ -127,6 +128,7 @@ const App = () => {
                 <Route path="/import" element={<Layout><DataImportPage /></Layout>} />
                 <Route path="/connect" element={<Layout><ConnectAPIs /></Layout>} />
                 <Route path="/cloud-sync" element={<Layout><CloudSync /></Layout>} />
+                <Route path="/ai-optimization" element={<Layout><AIOptimization /></Layout>} />
 
                 {/* Header Navigation Routes */}
                 <Route path="/update-history" element={<Layout><Update /></Layout>} />

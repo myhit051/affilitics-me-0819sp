@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, AlertCircle, Zap } from "lucide-react";
 
 interface UpdateItem {
-  date: string;
-  time: string;
+  date?: string; // ทำให้ optional เพื่อใช้วันที่อัตโนมัติ
+  time?: string; // ทำให้ optional เพื่อใช้เวลาอัตโนมัติ
   version: string;
   type: 'feature' | 'fix' | 'improvement' | 'security';
   title: string;
@@ -12,7 +12,259 @@ interface UpdateItem {
   details?: string[];
 }
 
+// ฟังก์ชันสร้างวันที่และเวลาปัจจุบัน
+const getCurrentDateTime = () => {
+  const now = new Date();
+
+  // สร้างวันที่ในรูปแบบ YYYY-MM-DD
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+
+  // สร้างเวลาในรูปแบบ HH:MM
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const time = `${hours}:${minutes}`;
+
+  return { date, time };
+};
+
 const updates: UpdateItem[] = [
+  {
+    version: "v2.5.241",
+    type: "improvement",
+    title: "🧹 Enhanced StatsChart Performance by Removing Debug Logging",
+    description: "Optimized the StatsChart component by removing unnecessary console.log statements and streamlining the chartData processing logic for improved rendering performance and cleaner code structure",
+    details: [
+      "🧹 Removed verbose console.log statements from StatsChart.tsx chartData useMemo hook",
+      "⚡ Improved chart rendering performance by eliminating unnecessary debug logging overhead",
+      "🔧 Streamlined chartData processing logic with more concise and readable code structure",
+      "📊 Simplified data transformation flow while maintaining all existing chart functionality",
+      "✨ Enhanced code maintainability by removing development-only logging from production code",
+      "🎯 Preserved complete chart data mapping and visualization capabilities",
+      "📈 Maintained accurate daily metrics processing and display without performance impact",
+      "🚀 Improved overall application performance by reducing console output in production",
+      "🔍 Kept essential data processing logic while removing debugging artifacts",
+      "💡 Enhanced developer experience with cleaner, more focused component code"
+    ]
+  },
+  {
+    version: "v2.5.240",
+    type: "improvement",
+    title: "🔧 Enhanced Code Structure and Formatting for Update Logs",
+    description: "Improved code formatting and structure in Update.tsx component for better maintainability, readability, and consistency with project coding standards",
+    details: [
+      "🔧 Enhanced code formatting and structure in Update.tsx for improved readability",
+      "📝 Improved code maintainability with consistent formatting patterns",
+      "✨ Strengthened coding standards compliance across the update logging system",
+      "🎯 Enhanced file structure to support future development and feature additions",
+      "⚡ Improved system stability and reliability of the Update Logs display",
+      "🛠️ Refined code organization for better developer experience",
+      "📊 Maintained all existing functionality while improving code quality",
+      "🚀 Prepared foundation for future enhancements to the update system",
+      "🎨 Applied consistent styling and formatting throughout the component",
+      "🔍 Enhanced code clarity and documentation for better team collaboration"
+    ]
+  },
+  {
+    version: "v2.5.239",
+    type: "improvement",
+    title: "🕐 Enhanced Update Logs Date and Time Management System",
+    description: "Improved the Update.tsx component by making date and time fields optional and adding automatic Thai-formatted date/time generation, making it easier to add new update entries without manual timestamp management",
+    details: [
+      "🕐 Added getCurrentDateTime() function for automatic Thai-formatted date and time generation",
+      "📝 Made date and time fields optional in UpdateItem interface for better developer experience",
+      "🎯 Implemented automatic YYYY-MM-DD date format conversion from Thai locale",
+      "⏰ Added 24-hour time format support with HH:mm pattern for consistency",
+      "🔧 Enhanced update entry creation workflow by removing manual timestamp requirements",
+      "📊 Improved code maintainability with centralized date/time formatting logic",
+      "✨ Streamlined the process of adding new update logs for development team",
+      "🌏 Maintained Thai language support while ensuring consistent date formatting",
+      "⚡ Reduced manual work required when creating new update entries",
+      "🛠️ Enhanced developer productivity with automatic timestamp generation"
+    ]
+  },
+  {
+    // ไม่ต้องระบุ date และ time จะใช้วันที่ปัจจุบันอัตโนมัติ
+    version: "v2.5.238",
+    type: "improvement",
+    title: "🔄 Enhanced Daily Metrics Processing and LocalStorage Management",
+    description: "Improved the useImportedData hook to better handle daily metrics processing and localStorage persistence, ensuring more reliable data flow and preventing missing daily metrics in dashboard components",
+    details: [
+      "🔄 Enhanced useEffect trigger conditions to include daily metrics validation in auto-processing",
+      "📊 Added comprehensive daily metrics checking to prevent incomplete data processing",
+      "💾 Implemented automatic localStorage saving for daily metrics to ensure data persistence",
+      "🔍 Added detailed debug logging for daily metrics generation and validation process",
+      "⚡ Improved processing condition to trigger when calculatedMetrics OR dailyMetrics are missing",
+      "✅ Enhanced data completeness validation to ensure both metrics and daily data are available",
+      "🎯 Updated useEffect dependencies to include dailyMetrics for more accurate re-processing triggers",
+      "🛡️ Added error handling for localStorage operations with graceful fallback",
+      "📈 Improved data flow reliability between import processing and dashboard display",
+      "🔧 Enhanced debugging capabilities with sample data logging for daily metrics validation"
+    ]
+  },
+  {
+    date: "2025-08-25",
+    time: "13:45",
+    version: "v2.5.237",
+    type: "fix",
+    title: "🕐 Fixed Facebook Ads Date Processing with Local Time Zone Handling",
+    description: "Improved Facebook Ads date processing in daily metrics calculation by using local date formatting instead of UTC conversion, preventing timezone-related date shifting issues that could cause data to be assigned to incorrect days",
+    details: [
+      "🕐 Fixed Facebook Ads date key generation to use local time instead of UTC conversion",
+      "📅 Replaced toISOString().split('T')[0] with manual local date formatting to prevent timezone shifts",
+      "🔧 Implemented proper local date formatting using getFullYear(), getMonth(), and getDate() methods",
+      "✅ Added zero-padding for month and day values to maintain consistent YYYY-MM-DD format",
+      "🎯 Ensured Facebook Ads data is correctly assigned to the intended date in daily metrics",
+      "🌍 Eliminated timezone-related issues that could cause data to appear on wrong dates",
+      "📊 Improved accuracy of daily performance analytics by maintaining correct date associations",
+      "🔍 Enhanced debug logging to show the corrected local date key generation process",
+      "⚡ Maintained existing functionality while fixing the timezone conversion issue",
+      "📈 Ensured consistent date handling across all Facebook Ads data processing workflows"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "19:30",
+    version: "v2.5.236",
+    type: "improvement",
+    title: "📊 Enhanced StatsChart Component with Comprehensive Debug Logging",
+    description: "Added detailed debug logging to the StatsChart component to improve data flow visibility and troubleshoot daily metrics processing, ensuring accurate chart rendering and data visualization",
+    details: [
+      "🔍 Added comprehensive debug logging to StatsChart.tsx for daily metrics processing visibility",
+      "📊 Enhanced chartData useMemo with detailed logging of input dailyMetrics array length and sample data",
+      "📈 Added logging for total commission and ad spend calculations to verify data accuracy",
+      "🎯 Implemented result logging to track chart data transformation and mapping process",
+      "⚡ Added empty state logging to identify when no daily metrics are available for chart rendering",
+      "🔧 Enhanced data flow debugging to help identify issues in the analytics pipeline",
+      "📋 Improved troubleshooting capabilities for chart data processing and visualization",
+      "✨ Maintained existing chart functionality while adding comprehensive monitoring",
+      "🚀 Enhanced developer experience with detailed console logging for data flow analysis",
+      "📱 Preserved responsive chart design and performance while adding debug capabilities"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "18:45",
+    version: "v2.5.235",
+    type: "improvement",
+    title: "🔍 Enhanced Daily Metrics Processing with Improved Date Handling and Debug Logging",
+    description: "Refined the daily metrics calculation in affiliate calculations by improving date parsing logic, adding comprehensive debug logging, and implementing better error handling for invalid dates to ensure more accurate analytics",
+    details: [
+      "🔍 Enhanced debug logging throughout Shopee order processing with detailed order tracking",
+      "📅 Improved date parsing by utilizing the centralized parseDate helper function for consistency",
+      "🚫 Changed invalid date handling to skip orders instead of using fallback dates for better data accuracy",
+      "📊 Added comprehensive logging for date parsing attempts and results across all date columns",
+      "⚡ Streamlined date processing logic by removing redundant date format handling code",
+      "🎯 Enhanced order tracking with index-based logging for better debugging capabilities",
+      "✅ Improved data integrity by ensuring only orders with valid dates are included in daily metrics",
+      "🔧 Simplified date key generation using consistent local date formatting",
+      "📈 Enhanced commission tracking accuracy by skipping problematic date entries",
+      "🛡️ Better error prevention by validating dates before processing instead of using fallbacks"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "17:15",
+    version: "v2.5.234",
+    type: "improvement",
+    title: "📅 Enhanced Date Parsing System for Multi-Format Support",
+    description: "Significantly improved the date parsing functionality in affiliate calculations to handle multiple date formats including Thai (DD/MM/YYYY) and ISO (YYYY-MM-DD) formats with comprehensive validation and error handling",
+    details: [
+      "📅 Added robust parseDate helper function to affiliateCalculations.ts for reliable date processing",
+      "🌏 Enhanced support for Thai date format (DD/MM/YYYY) with proper day/month/year parsing",
+      "🔧 Improved ISO date format handling (YYYY-MM-DD) with time component separation",
+      "✅ Added comprehensive date validation to ensure valid day (1-31), month (0-11), and year (>=2000) ranges",
+      "🛡️ Implemented fallback to native Date parsing for edge cases and unknown formats",
+      "🔍 Added detailed error logging for date parsing failures with input value tracking",
+      "⚡ Optimized date processing performance by handling time components separately",
+      "📊 Enhanced daily metrics calculation accuracy with improved date consistency",
+      "🎯 Reduced date parsing errors and improved data reliability across all analytics",
+      "🚀 Prepared foundation for more robust multi-platform date handling in future updates"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "16:30",
+    version: "v2.5.233",
+    type: "improvement",
+    title: "🧭 Enhanced Layout Component with Update History Route Support",
+    description: "Updated the Layout component to include proper route mapping for the update history page, ensuring seamless navigation and active state management for the update history section",
+    details: [
+      "🧭 Added update-history route mapping to getActiveView() function in Layout.tsx",
+      "🔧 Enhanced navigation system to properly handle /update-history path routing",
+      "✨ Improved active state detection for update history navigation menu item",
+      "📱 Maintained consistent routing pattern with existing navigation structure",
+      "🎯 Ensured proper sidebar highlighting when viewing update history page",
+      "⚡ Enhanced user experience with accurate navigation state management"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "16:15",
+    version: "v2.5.232",
+    type: "improvement",
+    title: "📚 Added History Icon Import to Sidebar Navigation Component",
+    description: "Enhanced the Sidebar component by adding the History icon import from Lucide React, preparing the navigation system for future update history and activity tracking features",
+    details: [
+      "📚 Added History icon import to Sidebar.tsx from Lucide React icon library",
+      "🔧 Enhanced icon availability for future navigation features and update tracking",
+      "⚡ Prepared foundation for activity history and changelog navigation integration",
+      "✨ Maintained consistent import organization and code structure",
+      "🎯 Ready for implementation of update history access from main navigation",
+      "📱 Ensured icon compatibility with existing responsive sidebar design"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "15:45",
+    version: "v2.5.231",
+    type: "feature",
+    title: "🤖 Enhanced AI Optimization Page with Complete Campaign Intelligence System",
+    description: "Significantly enhanced the AI Optimization page with comprehensive campaign intelligence features including detailed recommendations, progress tracking, key metrics overview, and integrated AI insights for complete affiliate marketing optimization",
+    details: [
+      "🤖 Enhanced AIOptimization.tsx with complete AI-powered campaign optimization interface",
+      "📊 Added comprehensive key metrics overview with ROI, Active Sub IDs, AI Recommendations, and Issues tracking",
+      "🎯 Implemented detailed recommendation system with 5 comprehensive mock recommendations covering budget, platform, timing, sub-id, and creative optimization",
+      "📈 Integrated real-time analysis progress tracking with animated progress bars and step-by-step feedback",
+      "💡 Added sophisticated recommendation cards with detailed descriptions, impact levels, confidence scores, and actionable items",
+      "🔄 Built AI analysis simulation with realistic progress steps and loading states",
+      "📋 Created comprehensive recommendation details including ROI analysis, conversion rates, cost metrics, and trend data",
+      "⚡ Implemented recommendation interaction handlers for accept, reject, and feedback collection",
+      "🎨 Applied consistent purple-to-blue gradient branding throughout the AI interface",
+      "📱 Built responsive grid layouts for optimal viewing across all device sizes",
+      "✨ Added empty state with call-to-action for users without imported data",
+      "🔧 Integrated with existing useImportedData hook for seamless data flow",
+      "🏷️ Added platform-specific badges and visual indicators for better user experience",
+      "📊 Created dynamic Sub ID counting across all platforms (Shopee, Lazada, Facebook)",
+      "🎯 Built foundation for future AI service integration with proper data structures and handlers"
+    ]
+  },
+  {
+    date: "2025-01-27",
+    time: "14:30",
+    version: "v2.5.230",
+    type: "feature",
+    title: "🤖 Created AI Insights Panel Component for Campaign Optimization",
+    description: "Built a comprehensive AI Insights Panel component providing intelligent recommendations, performance predictions, and data-driven insights for affiliate marketing campaign optimization with interactive tabbed interface",
+    details: [
+      "🤖 Created AIInsightsPanel.tsx component with complete AI-powered analytics interface",
+      "📊 Implemented tabbed navigation system with Recommendations, Predictions, and Insights sections",
+      "🎯 Built AI recommendation system with confidence scores, impact levels, and actionable suggestions",
+      "📈 Added performance prediction functionality with ROI forecasting and trend analysis",
+      "🔍 Created insights dashboard showing top performers, growth opportunities, and areas needing attention",
+      "⚡ Integrated mock AI analysis with realistic data for budget optimization, platform performance, and timing recommendations",
+      "🎨 Applied gradient styling with purple-to-blue theme matching AI branding",
+      "📱 Implemented responsive design with mobile-friendly card layouts and interactive elements",
+      "🔄 Added analysis simulation with loading states and progress indicators",
+      "✨ Built user feedback system with thumbs up/down buttons for recommendation quality",
+      "🏷️ Added confidence badges and impact level indicators for recommendation prioritization",
+      "💰 Integrated currency formatting and ROI calculations for financial insights",
+      "🎯 Created foundation for future AI service integration with existing data structures",
+      "📋 Added Thai language support throughout the interface for better user experience"
+    ]
+  },
   {
     date: "2024-12-19",
     time: "15:45",
@@ -4502,7 +4754,7 @@ const getTypeBadge = (type: UpdateItem['type']) => {
     improvement: { label: 'Improvement', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
     security: { label: 'Security', className: 'bg-red-500/20 text-red-400 border-red-500/30' }
   };
-  
+
   const config = configs[type];
   return (
     <Badge className={`text-xs ${config.className}`}>
@@ -4530,8 +4782,8 @@ export default function Update() {
         </p>
         <div className="flex justify-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-          <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" style={{animationDelay: '0.2s'}}></div>
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" style={{animationDelay: '0.4s'}}></div>
+          <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" style={{ animationDelay: '0.4s' }}></div>
         </div>
       </div>
 
@@ -4587,7 +4839,7 @@ export default function Update() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {update.date} {update.time}
+                        {update.date || getCurrentDateTime().date} {update.time || getCurrentDateTime().time}
                       </span>
                       <Badge variant="outline" className="text-xs">
                         {update.version}

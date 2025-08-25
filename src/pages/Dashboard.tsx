@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [originalData, setOriginalData] = useState<any>(null);
+
   
   const { 
     importedData, 
@@ -93,6 +94,8 @@ export default function Dashboard() {
   console.log('🔍 DASHBOARD DEBUG:', {
     hasData,
     hasCalculatedMetrics: !!calculatedMetrics,
+    hasDailyMetrics: !!dailyMetrics,
+    dailyMetricsLength: dailyMetrics?.length || 0,
     importedDataKeys: importedData ? Object.keys(importedData) : null,
     shopeeOrdersCount: importedData?.shopeeOrders?.length || 0,
     lazadaOrdersCount: importedData?.lazadaOrders?.length || 0,
@@ -102,6 +105,19 @@ export default function Dashboard() {
     totalOrdersLZD: calculatedMetrics?.totalOrdersLZD,
     unitsLZD: calculatedMetrics?.unitsLZD
   });
+
+  // Debug dailyMetrics
+  if (dailyMetrics && dailyMetrics.length > 0) {
+    console.log('📊 DAILY METRICS DEBUG:', {
+      length: dailyMetrics.length,
+      sample: dailyMetrics.slice(0, 3),
+      totalCom: dailyMetrics.reduce((sum, day) => sum + day.totalCom, 0),
+      totalAdSpend: dailyMetrics.reduce((sum, day) => sum + day.adSpend, 0),
+      totalOrdersSP: dailyMetrics.reduce((sum, day) => sum + day.ordersSP, 0)
+    });
+  } else {
+    console.log('❌ NO DAILY METRICS AVAILABLE');
+  }
 
   const formatCurrency = (value: number) => {
     const rounded = Math.round(value * 100) / 100;
@@ -169,6 +185,8 @@ export default function Dashboard() {
             <RotateCcw className="h-4 w-4" />
             รีเซ็ตตัวกรอง
           </Button>
+
+
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -365,6 +383,8 @@ export default function Dashboard() {
           calculatedMetrics={calculatedMetrics}
         />
       </div>
+
+
 
       <AdsChart 
         dailyMetrics={dailyMetrics || []}

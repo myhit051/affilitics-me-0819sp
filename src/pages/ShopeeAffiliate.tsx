@@ -31,24 +31,10 @@ export default function ShopeeAffiliate() {
       hasData,
       shopeeOrdersLength: shopeeOrders.length,
       calculatedMetrics: calculatedMetrics,
-      calculatedMetricsKeys: calculatedMetrics ? Object.keys(calculatedMetrics) : null
+      calculatedMetricsKeys: calculatedMetrics ? Object.keys(calculatedMetrics) : null,
+      rawShopeeCommission,
+      uniqueShopeeOrderCount
     });
-
-    if (calculatedMetrics) {
-      console.log('📊 calculatedMetrics details:', {
-        totalComSP: calculatedMetrics.totalComSP,
-        totalOrdersSP: calculatedMetrics.totalOrdersSP,
-        totalAmountSP: calculatedMetrics.totalAmountSP,
-        totalCom: calculatedMetrics.totalCom,
-        allKeys: Object.keys(calculatedMetrics),
-        allValues: Object.values(calculatedMetrics)
-      });
-      
-      // Log the entire calculatedMetrics object
-      console.log('📊 calculatedMetrics full object:', calculatedMetrics);
-      console.log('📊 calculatedMetrics type:', typeof calculatedMetrics);
-      console.log('📊 calculatedMetrics constructor:', calculatedMetrics.constructor.name);
-    }
 
     if (!hasData || !shopeeOrders.length) {
       console.log('❌ No data available');
@@ -62,7 +48,7 @@ export default function ShopeeAffiliate() {
       };
     }
 
-    // ใช้ข้อมูลจาก calculatedMetrics ที่ผ่านการคำนวณแล้ว
+    // ใช้ข้อมูลจาก calculatedMetrics และ rawShopeeCommission เหมือนกับหน้า Dashboard
     let totalCommission = 0;
     let totalOrders = 0;
     let totalAmount = 0;
@@ -73,36 +59,24 @@ export default function ShopeeAffiliate() {
       totalAmount = calculatedMetrics.totalAmountSP || 0;
       console.log('✅ Using calculatedMetrics:', { totalCommission, totalOrders, totalAmount });
     } else {
-      // Fallback: คำนวณเองถ้า calculatedMetrics ไม่มี
-      console.log('⚠️ calculatedMetrics not available, calculating locally...');
+      // Fallback: ใช้ rawShopeeCommission และ uniqueShopeeOrderCount จาก hook
+      totalCommission = rawShopeeCommission || 0;
+      totalOrders = uniqueShopeeOrderCount || 0;
       
-      // ใช้ logic เดียวกับ affiliateCalculations.ts
+      // คำนวณ totalAmount จากข้อมูลดิบ
       const uniqueShopeeOrders = new Map();
       shopeeOrders.forEach(order => {
         const orderId = order['รหัสการสั่งซื้อ'] || order['เลขที่คำสั่งซื้อ'];
         if (!uniqueShopeeOrders.has(orderId)) {
           uniqueShopeeOrders.set(orderId, {
             ...order,
-            'คอมมิชชั่นสินค้าโดยรวม(฿)': parseFloat(order['คอมมิชชั่นสินค้าโดยรวม(฿)'] || '0'),
             'มูลค่าซื้อ(฿)': parseFloat(order['มูลค่าซื้อ(฿)'] || '0')
           });
         } else {
           const existing = uniqueShopeeOrders.get(orderId);
-          existing['คอมมิชชั่นสินค้าโดยรวม(฿)'] += parseFloat(order['คอมมิชชั่นสินค้าโดยรวม(฿)'] || '0');
           existing['มูลค่าซื้อ(฿)'] += parseFloat(order['มูลค่าซื้อ(฿)'] || '0');
         }
       });
-
-      totalCommission = Array.from(uniqueShopeeOrders.values()).reduce((sum, order) => {
-        return sum + (typeof order['คอมมิชชั่นสินค้าโดยรวม(฿)'] === 'number'
-          ? order['คอมมิชชั่นสินค้าโดยรวม(฿)']
-          : parseFloat(order['คอมมิชชั่นสินค้าโดยรวม(฿)'] || '0'));
-      }, 0);
-      
-      // ปัดเศษเป็น 2 ตำแหน่งทศนิยม
-      totalCommission = Math.round(totalCommission * 100) / 100;
-
-      totalOrders = uniqueShopeeOrders.size;
 
       totalAmount = Array.from(uniqueShopeeOrders.values()).reduce((sum, order) => {
         return sum + (typeof order['มูลค่าซื้อ(฿)'] === 'number'
@@ -110,7 +84,7 @@ export default function ShopeeAffiliate() {
           : parseFloat(order['มูลค่าซื้อ(฿)'] || '0'));
       }, 0);
 
-      console.log('✅ Local calculation result:', { totalCommission, totalOrders, totalAmount });
+      console.log('✅ Using raw data from hook:', { totalCommission, totalOrders, totalAmount });
     }
 
     const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;

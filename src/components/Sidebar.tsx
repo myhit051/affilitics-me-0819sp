@@ -22,7 +22,10 @@ import {
   Briefcase,
   Zap,
   Database,
-  Link
+  Link,
+  Brain,
+  Sparkles,
+  History
 } from "lucide-react";
 
 interface SidebarLinkProps {
@@ -44,8 +47,9 @@ const SidebarLink = ({
     if (label.includes("Dashboard")) return "bg-gradient-to-r from-blue-500/20 to-blue-600/10 border-l-2 border-blue-500 text-blue-400";
     if (label.includes("Facebook")) return "bg-gradient-to-r from-blue-600/20 to-blue-700/10 border-l-2 border-blue-600 text-blue-300";
     if (label.includes("Planning")) return "bg-gradient-to-r from-orange-500/20 to-orange-600/10 border-l-2 border-orange-500 text-orange-400";
+    if (label.includes("AI")) return "bg-gradient-to-r from-purple-500/20 to-pink-600/10 border-l-2 border-purple-500 text-purple-400";
     if (label.includes("Import")) return "bg-gradient-to-r from-purple-500/20 to-purple-600/10 border-l-2 border-purple-500 text-purple-400";
-    if (label.includes("Update")) return "bg-gradient-to-r from-green-500/20 to-green-600/10 border-l-2 border-green-500 text-green-400";
+    if (label.includes("Update") || label.includes("History")) return "bg-gradient-to-r from-green-500/20 to-green-600/10 border-l-2 border-green-500 text-green-400";
     if (label.includes("Settings")) return "bg-gradient-to-r from-gray-500/20 to-gray-600/10 border-l-2 border-gray-500 text-gray-400";
     return "bg-gradient-to-r from-blue-500/20 to-blue-600/10 border-l-2 border-blue-500 text-blue-400";
   };
@@ -172,6 +176,13 @@ export default function Sidebar({
             onClick={() => handleNavigation("planning")}
           />
           <SidebarLink 
+            icon={Brain} 
+            label="AI Optimization" 
+            active={activeView === "ai-optimization"}
+            collapsed={collapsed}
+            onClick={() => handleNavigation("ai-optimization")}
+          />
+          <SidebarLink 
             icon={Briefcase} 
             label="Workspace" 
             active={activeView === "workspace"}
@@ -228,6 +239,13 @@ export default function Sidebar({
               active={activeView === "cloud-sync"}
               collapsed={collapsed}
               onClick={() => handleNavigation("cloud-sync")}
+            />
+            <SidebarLink 
+              icon={History} 
+              label="Update History" 
+              active={activeView === "update-history"}
+              collapsed={collapsed}
+              onClick={() => handleNavigation("update-history")}
             />
           </div>
         </div>

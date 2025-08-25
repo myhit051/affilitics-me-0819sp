@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "name": "Thai Update Logger",
+  "description": "Automatically writes a brief summary log to README.md and adds entries to the Update Logs menu on the website whenever files in the project are modified or updated, with descriptions written in Thai language",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.tsx",
+      "src/**/*.ts",
+      "src/**/*.css",
+      "package.json",
+      "README.md",
+      "*.md",
+      "public/**/*",
+      "components.json",
+      "vite.config.ts",
+      "tailwind.config.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "ไฟล์ในโปรเจกต์ได้รับการอัปเดต กรุณาวิเคราะห์การเปลี่ยนแปลงและเขียนสรุปสั้นๆ เป็นภาษาไทยลงใน README.md ในส่วน \"## การอัปเดตล่าสุด\" และเพิ่มรายการใหม่ในเมนู Update Logs ของเว็บไซต์ โดยระบุวันที่ เวลา และรายละเอียดการเปลี่ยนแปลงที่สำคัญ เช่น การเพิ่มฟีเจอร์ใหม่ การแก้ไขบัค การปรับปรุง UI หรือการอัปเดตการกำหนดค่า"
+  }
+}

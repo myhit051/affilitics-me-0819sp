@@ -3,6 +3,7 @@ import DataImport from "@/components/DataImport";
 import { Upload, Database, FileSpreadsheet, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { calculateMetrics } from "@/utils/affiliateCalculations";
 
 export default function DataImportPage() {
   const [storedData, setStoredData] = useState<{
@@ -24,26 +25,45 @@ export default function DataImportPage() {
       localStorage.setItem('affiliateData', JSON.stringify(data));
       localStorage.setItem('affiliateRawData', JSON.stringify(data));
       
-      // Calculate basic metrics
-      const totalRows = data.totalRows || 0;
-      const shopeeCount = data.shopeeOrders?.length || 0;
-      const lazadaCount = data.lazadaOrders?.length || 0;
-      const facebookCount = data.facebookAds?.length || 0;
-      
-      // Save basic metrics
-      const basicMetrics = {
-        totalRows,
-        shopeeCount,
-        lazadaCount,
-        facebookCount,
-        importTime: new Date().toISOString()
-      };
-      
-      localStorage.setItem('affiliateMetrics', JSON.stringify(basicMetrics));
-      console.log('✅ Data saved to localStorage:', {
-        affiliateData: data,
-        basicMetrics: basicMetrics
-      });
+      // Calculate proper metrics using the same logic as the app
+      try {
+        const metrics = calculateMetrics(
+          data.shopeeOrders || [],
+          data.lazadaOrders || [],
+          data.facebookAds || [],
+          [], // No SubID filter
+          "all", // No validity filter
+          [], // No channel filter
+          "all" // No platform filter
+        );
+        
+        // Save calculated metrics to localStorage
+        localStorage.setItem('affiliateMetrics', JSON.stringify(metrics));
+        
+        console.log('✅ Data and metrics saved to localStorage:', {
+          affiliateData: data,
+          calculatedMetrics: metrics
+        });
+      } catch (metricsError) {
+        console.error('Failed to calculate metrics:', metricsError);
+        
+        // Fallback: save basic metrics if calculation fails
+        const totalRows = data.totalRows || 0;
+        const shopeeCount = data.shopeeOrders?.length || 0;
+        const lazadaCount = data.lazadaOrders?.length || 0;
+        const facebookCount = data.facebookAds?.length || 0;
+        
+        const basicMetrics = {
+          totalRows,
+          shopeeCount,
+          lazadaCount,
+          facebookCount,
+          importTime: new Date().toISOString()
+        };
+        
+        localStorage.setItem('affiliateMetrics', JSON.stringify(basicMetrics));
+        console.log('⚠️ Using fallback basic metrics');
+      }
       
       // Force reload the page to ensure data is loaded properly
       setTimeout(() => {

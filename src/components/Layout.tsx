@@ -19,9 +19,11 @@ export default function Layout({ children }: LayoutProps) {
         if (path === "/facebook-file") return "facebook-file";
         if (path === "/facebook-live" || path === "/facebook-ads-api") return "facebook-live";
         if (path === "/planning") return "planning";
+        if (path === "/ai-optimization") return "ai-optimization";
         if (path === "/workspace") return "workspace";
         if (path === "/import") return "import";
         if (path === "/connect") return "connect";
+        if (path === "/update-history") return "update-history";
         return "dashboard";
     };
 
@@ -34,9 +36,11 @@ export default function Layout({ children }: LayoutProps) {
             "facebook-file": "/facebook-file",
             "facebook-live": "/facebook-live",
             planning: "/planning",
+            "ai-optimization": "/ai-optimization",
             workspace: "/workspace",
             import: "/import",
-            connect: "/connect"
+            connect: "/connect",
+            "update-history": "/update-history"
         };
 
         const route = routes[view];
